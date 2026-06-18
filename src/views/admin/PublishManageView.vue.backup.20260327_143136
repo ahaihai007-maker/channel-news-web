@@ -1,0 +1,904 @@
+<template>
+  <div class="publish-manage-view">
+    <!-- 搜索栏 -->
+    <el-card class="search-card" shadow="never">
+      <el-form :inline="true" class="search-form">
+        <el-form-item label="搜索">
+          <el-input
+            v-model="searchForm.keyword"
+            placeholder="标题"
+            clearable
+            @keyup.enter="handleSearch"
+            style="width: 180px"
+          />
+        </el-form-item>
+        
+        <el-form-item label="类型">
+          <el-select v-model="searchForm.authorType" placeholder="全部" clearable style="width: 130px">
+            <el-option label="网友投稿" value="submission" />
+            <el-option label="机器人抓取" value="bot" />
+            <el-option label="手动投稿" value="manual" />
+            <el-option label="付费广告" value="ad" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="日期">
+          <el-date-picker
+            v-model="searchForm.dateRange"
+            type="daterange"
+            range-separator="-"
+            start-placeholder="开始"
+            end-placeholder="结束"
+            style="width: 260px"
+            value-format="YYYY-MM-DD"
+          />
+        </el-form-item>
+        
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+          <el-button type="success" @click="fetchArticles">刷新</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <!-- 数据表格 -->
+    <el-card>
+      <template #header>
+        <div class="card-header">
+          <span>待发布稿件 (共 {{ total }} 条)</span>
+        </div>
+      </template>
+      
+      <el-table :data="articles" v-loading="loading" style="width: 100%">
+        <el-table-column prop="id" label="ID" width="60" />
+        
+        <el-table-column label="标题" min-width="250">
+          <template #default="{ row }">
+            <el-link type="primary" @click="viewDetail(row)">{{ row.title }}</el-link>
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="作者" width="120">
+          <template #default="{ row }">
+            {{ row.authorName || '匿名' }}
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="附件" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.hasFiles" type="success" size="small">有附件</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="通过时间" width="160">
+          <template #default="{ row }">
+            {{ formatDate(row.updatedAt) }}
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="操作" width="120" fixed="right">
+          <template #default="{ row }">
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="publishArticleConfirm(row)"
+              :loading="publishingId === row.id"
+              :disabled="publishingId === row.id"
+            >
+              {{ publishingId === row.id ? '发布中...' : '发布' }}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      
+      <!-- 分页 -->
+      <div class="pagination-container" v-if="total > 0">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="fetchArticles"
+          @current-change="fetchArticles"
+        />
+      </div>
+      
+      <el-empty v-if="!loading && articles.length === 0" description="暂无待发布稿件" />
+    </el-card>
+
+    <!-- 文章预览弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      title="文章预览"
+      width="900px"
+      class="article-preview-dialog"
+      :close-on-click-modal="false"
+    >
+      <div v-if="currentArticle" class="article-preview">
+        <!-- 标题 -->
+        <h2 class="preview-title">{{ currentArticle.title }}</h2>
+        
+        <!-- 元信息 -->
+        <div class="preview-meta">
+          <span class="meta-item">
+            <el-icon><User /></el-icon>
+            {{ currentArticle.authorName || '匿名' }}
+          </span>
+          <span class="meta-item">
+            <el-icon><Calendar /></el-icon>
+            {{ formatDate(currentArticle.createdAt) }}
+          </span>
+          <span class="meta-item">
+            <el-tag type="success" size="small">审核通过</el-tag>
+          </span>
+        </div>
+        
+        <!-- 摘要 -->
+        <div v-if="currentArticle.summary" class="preview-summary">
+          <el-alert :title="currentArticle.summary" type="info" :closable="false" show-icon />
+        </div>
+        
+        <!-- 媒体文件展示区域（图片和视频在前） -->
+        <div v-if="currentArticle.files && currentArticle.files.length > 0" class="preview-media-section">
+          <!-- 图片画廊 -->
+          <div v-if="getImageFiles().length > 0" class="media-gallery">
+            <h4 class="section-title">
+              <el-icon><Picture /></el-icon>
+              图片 ({{ getImageFiles().length }})
+            </h4>
+            <div class="image-grid">
+              <div 
+                v-for="(file, index) in getImageFiles()" 
+                :key="'img-'+index" 
+                class="image-item"
+                @click="previewImage(index)"
+              >
+                <el-image 
+                  :src="getFileViewUrl(file.url)" 
+                  fit="cover"
+                  class="gallery-image"
+                />
+                <div class="image-overlay">
+                  <el-icon><ZoomIn /></el-icon>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 视频列表 -->
+          <div v-if="getVideoFiles().length > 0" class="media-gallery">
+            <h4 class="section-title">
+              <el-icon><VideoCamera /></el-icon>
+              视频 ({{ getVideoFiles().length }})
+            </h4>
+            <div class="video-list">
+              <div 
+                v-for="(file, index) in getVideoFiles()" 
+                :key="'video-'+index" 
+                class="video-item"
+              >
+                <video 
+                  :src="getFileViewUrl(file.url)" 
+                  controls
+                  class="preview-video"
+                />
+                <div class="video-info">
+                  <span class="video-name">{{ file.originalName || file.fileName }}</span>
+                  <span class="video-size">{{ formatFileSize(file.fileSize) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 其他文件 -->
+          <div v-if="getOtherFiles().length > 0" class="media-gallery">
+            <h4 class="section-title">
+              <el-icon><Document /></el-icon>
+              附件 ({{ getOtherFiles().length }})
+            </h4>
+            <div class="file-list">
+              <div 
+                v-for="(file, index) in getOtherFiles()" 
+                :key="'file-'+index" 
+                class="file-item-compact"
+              >
+                <el-icon size="24"><Document /></el-icon>
+                <span class="file-name">{{ file.originalName || file.fileName }}</span>
+                <span class="file-size">{{ formatFileSize(file.fileSize) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 文章内容（在后） -->
+        <div class="preview-content-wrapper">
+          <h4 class="section-title">
+            <el-icon><Document /></el-icon>
+            正文内容
+          </h4>
+          <div class="preview-content" v-html="currentArticle.content"></div>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 快速投稿对话框 -->
+    <el-dialog
+      v-model="submitDialogVisible"
+      title="快速投稿"
+      width="700px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="submitForm" label-width="100px">
+        <el-form-item label="认证方式" required>
+          <el-radio-group v-model="submitForm.authMode">
+            <el-radio label="jwt">使用当前登录账号(JWT)</el-radio>
+            <el-radio label="bot">使用Bot Token</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <el-form-item label="Bot Token" v-if="submitForm.authMode === 'bot'" required>
+          <el-input 
+            v-model="submitForm.botToken" 
+            placeholder="请输入Bot Token" 
+            type="password"
+            show-password
+          />
+        </el-form-item>
+        
+        <el-form-item label="投稿类型" required>
+          <el-select v-model="submitForm.articleType" style="width: 100%">
+            <el-option label="#付费广告" value="AD" />
+            <el-option label="#网友投稿" value="SUBMISSION" />
+            <el-option label="手动投稿（无标签）" value="MANUAL" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="文章标题" required>
+          <el-input v-model="submitForm.title" placeholder="请输入标题" />
+        </el-form-item>
+        
+        <el-form-item label="作者" required>
+          <el-input v-model="submitForm.authorUsername" placeholder="作者用户名" />
+        </el-form-item>
+        
+        <el-form-item label="摘要">
+          <el-input 
+            v-model="submitForm.summary" 
+            type="textarea" 
+            :rows="2"
+            placeholder="文章摘要（可选）"
+          />
+        </el-form-item>
+        
+        <el-form-item label="文章内容" required>
+          <el-input 
+            v-model="submitForm.content" 
+            type="textarea" 
+            :rows="8"
+            placeholder="支持HTML格式"
+          />
+        </el-form-item>
+        
+        <el-form-item label="上传附件">
+          <el-upload
+            v-model:file-list="fileList"
+            action="#"
+            :auto-upload="false"
+            :on-change="handleFileChange"
+            :on-remove="handleFileRemove"
+            multiple
+            drag
+          >
+            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+            <div class="el-upload__text">
+              拖拽文件到此处或 <em>点击上传</em>
+            </div>
+            <template #tip>
+              <div class="el-upload__tip">
+                支持多个图片（jpg/png/gif）和视频（mp4/mov）文件，单个文件不超过50MB
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        
+        <!-- 预览已选择的文件 -->
+        <el-form-item label="已选文件" v-if="fileList.length > 0">
+          <div class="file-preview-list">
+            <div v-for="(file, index) in fileList" :key="index" class="file-preview-item">
+              <el-image 
+                v-if="isImage(file.raw.type)" 
+                :src="getFileUrl(file)" 
+                fit="cover"
+                style="width: 100px; height: 100px;"
+              />
+              <div v-else class="video-preview">
+                <el-icon><VideoCamera /></el-icon>
+                <span>视频文件</span>
+              </div>
+              <span class="file-name">{{ file.name }}</span>
+              <el-button 
+                type="danger" 
+                link 
+                size="small" 
+                @click="removeFile(index)"
+              >
+                删除
+              </el-button>
+            </div>
+          </div>
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="submitDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+            提交投稿
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { getApprovedArticles, publishArticle, submitArticleWithFiles, getArticleDetail } from '@/services/api.js'
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
+import { Search, UploadFilled, VideoCamera, Document, User, Calendar, Picture, ZoomIn } from '@element-plus/icons-vue'
+
+// 详情弹窗
+const detailVisible = ref(false)
+const currentArticle = ref(null)
+
+// 搜索表单
+const searchForm = reactive({
+  keyword: '',
+  authorType: '',
+  dateRange: null
+})
+
+// 数据列表
+const articles = ref([])
+const loading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+
+// 投稿对话框
+const submitDialogVisible = ref(false)
+const submitting = ref(false)
+const submitForm = reactive({
+  title: '',
+  content: '',
+  summary: '',
+  authorUsername: 'bot',
+  authMode: 'jwt',
+  botToken: '',
+  articleType: 'AD'
+})
+
+// 文件列表
+const fileList = ref([])
+
+// 获取数据
+const fetchArticles = async () => {
+  loading.value = true
+  try {
+    const params = {
+      page: currentPage.value,
+      pageSize: pageSize.value
+    }
+    
+    if (searchForm.keyword) {
+      params.keyword = searchForm.keyword
+    }
+    if (searchForm.authorType) {
+      params.authorType = searchForm.authorType
+    }
+    // 添加日期范围参数
+    if (searchForm.dateRange && searchForm.dateRange.length === 2) {
+      const formatDate = (date) => {
+        if (date instanceof Date) {
+          return date.toISOString().split('T')[0]
+        }
+        return date
+      }
+      params.startDate = formatDate(searchForm.dateRange[0])
+      params.endDate = formatDate(searchForm.dateRange[1])
+    }
+    
+    const res = await getApprovedArticles(params)
+    if (res.code === 200) {
+      articles.value = res.data.list || []
+      total.value = res.data.total || 0
+    }
+  } catch (error) {
+    console.error('获取列表失败:', error)
+    ElMessage.error('获取列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 搜索
+const handleSearch = () => {
+  currentPage.value = 1
+  fetchArticles()
+}
+
+// 重置
+const handleReset = () => {
+  searchForm.keyword = ''
+  searchForm.authorType = ''
+  searchForm.dateRange = null
+  currentPage.value = 1
+  fetchArticles()
+}
+
+// 显示投稿对话框
+const showSubmitDialog = () => {
+  submitForm.title = ''
+  submitForm.content = ''
+  submitForm.summary = ''
+  submitForm.authMode = 'jwt'
+  submitForm.botToken = ''
+  submitForm.articleType = 'AD'
+  fileList.value = []
+  submitDialogVisible.value = true
+}
+
+// 判断是否为图片
+const isImage = (type) => {
+  return type && type.startsWith('image/')
+}
+
+// 获取文件预览URL
+const getFileUrl = (file) => {
+  return URL.createObjectURL(file.raw)
+}
+
+// 处理文件变更
+const handleFileChange = (uploadFile) => {
+  console.log('文件已选择:', uploadFile.name)
+}
+
+// 处理文件移除
+const handleFileRemove = () => {
+  console.log('文件已移除')
+}
+
+// 移除文件
+const removeFile = (index) => {
+  fileList.value.splice(index, 1)
+}
+
+// 提交投稿
+const handleSubmit = async () => {
+  if (!submitForm.title.trim()) {
+    ElMessage.warning('请输入标题')
+    return
+  }
+  if (!submitForm.content.trim()) {
+    ElMessage.warning('请输入内容')
+    return
+  }
+  if (!submitForm.authorUsername.trim()) {
+    ElMessage.warning('请输入作者')
+    return
+  }
+  
+  // 验证Bot Token（如果使用Bot认证方式）
+  if (submitForm.authMode === 'bot' && !submitForm.botToken.trim()) {
+    ElMessage.warning('请输入Bot Token')
+    return
+  }
+
+  submitting.value = true
+  try {
+    // 准备文件数据
+    const files = fileList.value.map(item => item.raw)
+    
+    // 确定使用哪种认证方式
+    const authToken = submitForm.authMode === 'bot' ? submitForm.botToken : false
+    
+    const res = await submitArticleWithFiles({
+      title: submitForm.title,
+      content: submitForm.content,
+      summary: submitForm.summary,
+      authorUsername: submitForm.authorUsername,
+      articleType: submitForm.articleType
+    }, files, authToken)
+    
+    if (res.code === 200) {
+      ElMessage.success(`投稿成功！上传了 ${res.data.fileCount || 0} 个文件`)
+      submitDialogVisible.value = false
+      // 刷新列表
+      fetchArticles()
+    } else {
+      ElMessage.error(res.message || '投稿失败')
+    }
+  } catch (error) {
+    console.error('投稿失败:', error)
+    ElMessage.error('投稿失败: ' + (error.message || '未知错误'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 查看文章详情（弹窗）
+const viewDetail = async (row) => {
+  // 获取完整文章详情（包含 content 和 files）
+  try {
+    const res = await getArticleDetail(row.id)
+    if (res.code === 200) {
+      currentArticle.value = res.data
+      detailVisible.value = true
+    } else {
+      ElMessage.error(res.message || '获取文章详情失败')
+    }
+  } catch (error) {
+    console.error('获取文章详情失败:', error)
+    ElMessage.error('获取文章详情失败')
+  }
+}
+
+// 获取图片文件列表
+const getImageFiles = () => {
+  if (!currentArticle.value?.files) return []
+  return currentArticle.value.files.filter(f => f.fileType === 'image')
+}
+
+// 获取视频文件列表
+const getVideoFiles = () => {
+  if (!currentArticle.value?.files) return []
+  return currentArticle.value.files.filter(f => f.fileType === 'video')
+}
+
+// 获取其他文件列表
+const getOtherFiles = () => {
+  if (!currentArticle.value?.files) return []
+  return currentArticle.value.files.filter(f => f.fileType !== 'image' && f.fileType !== 'video')
+}
+
+// 预览图片
+const previewImage = (index) => {
+  const images = getImageFiles()
+  const imageUrls = images.map(f => getFileViewUrl(f.url))
+  
+  // 使用 Element Plus 的图片预览
+  const { preview } = ElImage
+  if (preview) {
+    preview(imageUrls, index)
+  }
+}
+
+// 获取文件查看URL
+const getFileViewUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${window.location.protocol}//${window.location.host}${url}`
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// 正在发布的文章ID
+const publishingId = ref(null)
+
+const publishArticleConfirm = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要发布这篇文章吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+    
+    // 设置正在发布的文章ID，按钮会显示loading状态
+    publishingId.value = row.id
+    
+    try {
+      const res = await publishArticle(row.id)
+      if (res.code === 200) {
+        ElMessage.success('发布成功')
+        fetchArticles()
+      } else {
+        ElMessage.error(res.message || '发布失败')
+      }
+    } catch (error) {
+      ElMessage.error('发布失败：' + (error.message || '网络错误'))
+    } finally {
+      publishingId.value = null
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('发布失败')
+    }
+  }
+}
+
+const formatDate = (date) => {
+  if (!date) return ''
+  return new Date(date).toLocaleString('zh-CN')
+}
+
+onMounted(() => {
+  fetchArticles()
+})
+</script>
+
+<style scoped>
+.publish-manage-view {
+  padding: 20px 0;
+}
+
+.search-card {
+  margin-bottom: 20px;
+}
+
+.card-header {
+  font-weight: bold;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.file-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.file-preview-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  width: 120px;
+}
+
+.file-preview-item .file-name {
+  font-size: 12px;
+  color: #606266;
+  margin: 5px 0;
+  word-break: break-all;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-preview {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  color: #909399;
+}
+
+.video-preview .el-icon {
+  font-size: 32px;
+  margin-bottom: 5px;
+}
+
+/* 文章详情弹窗样式 */
+/* 文章预览弹窗样式 */
+.article-preview {
+  padding: 10px;
+}
+
+.preview-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 16px 0;
+  line-height: 1.4;
+}
+
+.preview-meta {
+  display: flex;
+  gap: 20px;
+  color: #909399;
+  font-size: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-summary {
+  margin-bottom: 24px;
+}
+
+/* 媒体展示区域 */
+.preview-media-section {
+  margin-bottom: 32px;
+}
+
+.media-gallery {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #606266;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 图片画廊 */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.image-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #f5f7fa;
+}
+
+.gallery-image {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s;
+}
+
+.image-item:hover .gallery-image {
+  transform: scale(1.05);
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.image-item:hover .image-overlay {
+  opacity: 1;
+}
+
+.image-overlay .el-icon {
+  font-size: 32px;
+  color: white;
+}
+
+/* 视频列表 */
+.video-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.video-item {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-video {
+  width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+  background: #000;
+}
+
+.video-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.video-name {
+  color: #606266;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 12px;
+}
+
+.video-size {
+  color: #909399;
+  flex-shrink: 0;
+}
+
+/* 其他文件列表 */
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item-compact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.file-item-compact .file-name {
+  flex: 1;
+  color: #606266;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-item-compact .file-size {
+  color: #909399;
+  flex-shrink: 0;
+}
+
+/* 文章内容区域 */
+.preview-content-wrapper {
+  border-top: 1px solid #ebeef5;
+  padding-top: 24px;
+}
+
+.preview-content {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #303133;
+}
+
+.preview-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 12px 0;
+}
+
+.preview-content :deep(p) {
+  margin: 12px 0;
+}
+
+.preview-content :deep(h2), .preview-content :deep(h3) {
+  margin: 20px 0 12px;
+  color: #303133;
+}
+</style>
