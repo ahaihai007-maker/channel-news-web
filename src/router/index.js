@@ -100,6 +100,11 @@ const routes = [
         component: () => import('../views/admin/ConfigView.vue')
       },
       {
+        path: 'pipeline',
+        name: 'AdminPipeline',
+        component: () => import('../views/admin/PipelineView.vue')
+      },
+      {
         path: 'payment',
         name: 'AdminPayment',
         component: () => import('../views/admin/PaymentView.vue')

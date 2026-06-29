@@ -31,6 +31,15 @@
             <span>装修模版</span>
           </el-menu-item>
 
+          <el-divider />
+
+          <el-menu-item index="/admin/pipeline">
+            <el-icon><MagicStick /></el-icon>
+            <span>AI 管线处理</span>
+          </el-menu-item>
+
+          <el-divider />
+
           <el-menu-item index="/admin/payment">
             <el-icon><Money /></el-icon>
             <span>稿费管理</span>
@@ -49,7 +58,7 @@
 import { ref, computed, onMounted, watch, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import NavHeader from '../components/common/NavHeader.vue'
-import { Bell, Timer, Upload, Odometer, User, Document, Setting, Money } from '@element-plus/icons-vue'
+import { Bell, Timer, Upload, Odometer, User, Document, Setting, MagicStick, Money } from '@element-plus/icons-vue'
 import { getPendingReviews } from '../services/api.js'
 
 const route = useRoute()

@@ -157,3 +157,21 @@ export const previewApi = {
   // 生成 L1-L6 层级预览
   getPreview: (articleId, data) => request.post(`/admin/article/${articleId}/preview`, data)
 }
+
+// ========== 频道监控接口 ==========
+export const channelMonitorApi = {
+  getConfig: () => request.get('/admin/config'),
+  saveChannels: (channels, enabled) => request.post('/admin/config', {
+    monitor_channels: channels,
+    monitor_enabled: enabled ? '1' : '0'
+  })
+}
+
+// ========== AI管线处理接口 ==========
+export const pipelineApi = {
+  getArticles: (params) => request.get('/admin/pipeline/articles', { params }),
+  getArticleDetail: (id) => request.get(`/admin/pipeline/articles/${id}`),
+  preview: (articleId, pipeline) => request.post('/admin/pipeline/preview', { articleId, pipeline }),
+  process: (articleId, pipeline) => request.post('/admin/pipeline/process', { articleId, pipeline }),
+  batchProcess: (articleIds, pipeline) => request.post('/admin/pipeline/batch-process', { articleIds, pipeline }),
+}
