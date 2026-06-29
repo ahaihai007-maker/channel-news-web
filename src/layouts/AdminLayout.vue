@@ -101,8 +101,9 @@ onMounted(() => {
 }
 
 .main-container {
-  max-width: 1600px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   padding: 20px;
   display: flex;
   gap: 20px;

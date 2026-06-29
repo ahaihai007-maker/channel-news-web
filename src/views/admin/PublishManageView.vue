@@ -13,10 +13,13 @@
       :articles="articles"
       :loading="loading"
       :total="total"
+      :selected-count="selectedArticles.length"
       :publishing-id="publishingId"
       :format-date="formatDate"
       @view-detail="viewDetail"
       @publish="publishArticleConfirm"
+      @batch-publish="openBatchPublishDialog"
+      @selection-change="handleSelectionChange"
       @page-change="fetchArticles"
     />
 
@@ -34,6 +37,7 @@
 
     <PublishTemplateDialog
       v-model:visible="templateDialogVisible"
+      v-model:use-template="useTemplate"
       v-model:selected-template-id="selectedTemplateId"
       v-model:use-emoji-prefix="useEmojiPrefix"
       v-model:selected-region-tag="selectedRegionTag"
@@ -42,7 +46,11 @@
       :templates="templates"
       :region-tags="regionTags"
       :type-tags="typeTags"
-      :publishing="publishingId === currentPublishArticle?.id"
+      :publishing="publishingId === 'batch' || publishingId === currentPublishArticle?.id"
+      :preview-loading="previewLoading"
+      :preview-message="previewMessage"
+      :preview-buttons="previewButtons"
+      @preview="generatePublishPreview"
       @confirm="confirmPublishWithTemplate"
     />
 
@@ -63,8 +71,8 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { getApprovedArticles, publishWithTemplate, submitArticleWithFiles, getArticleDetail, messageTemplateApi, tagApi } from '@/services/api.js'
-import { ElImage, ElMessage, ElMessageBox } from 'element-plus'
+import { getApprovedArticles, publishArticle, submitArticleWithFiles, getArticleDetail, messageTemplateApi, tagApi, previewApi, batchApi } from '@/services/api.js'
+import { ElImage, ElMessage } from 'element-plus'
 import PublishManageSearch from '@/components/admin/publish-manage/PublishManageSearch.vue'
 import PublishArticlesTable from '@/components/admin/publish-manage/PublishArticlesTable.vue'
 import PublishPreviewDialog from '@/components/admin/publish-manage/PublishPreviewDialog.vue'
@@ -84,6 +92,7 @@ const searchForm = reactive({
 
 // 数据列表
 const articles = ref([])
+const selectedArticles = ref([])
 const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -108,10 +117,15 @@ const fileList = ref([])
 // 模板选择对话框
 const templateDialogVisible = ref(false)
 const currentPublishArticle = ref(null)
+const isBatchPublishing = ref(false)
 const templates = ref([])
+const useTemplate = ref(false)
 const selectedTemplateId = ref(null)
 const useEmojiPrefix = ref(true)
 const loadingTemplates = ref(false)
+const previewLoading = ref(false)
+const previewMessage = ref('')
+const previewButtons = ref([])
 
 // 标签选择
 const regionTags = ref([])
@@ -328,11 +342,6 @@ const loadTemplates = async () => {
     
     if (templateRes.code === 200) {
       templates.value = templateRes.data || []
-      // 自动选择默认模板
-      const defaultTemplate = templates.value.find(t => t.templateType === 'postfix' && t.isDefault)
-      if (defaultTemplate) {
-        selectedTemplateId.value = defaultTemplate.id
-      }
     }
     
     if (regionRes.code === 200) {
@@ -352,31 +361,90 @@ const loadTemplates = async () => {
 // 打开模板选择对话框
 const openTemplateDialog = async (row) => {
   currentPublishArticle.value = row
+  isBatchPublishing.value = false
+  useTemplate.value = false
   selectedTemplateId.value = null
   useEmojiPrefix.value = true
   selectedRegionTag.value = null
   selectedTypeTag.value = null
+  previewMessage.value = ''
+  previewButtons.value = []
   await loadTemplates()
   templateDialogVisible.value = true
+}
+
+const openBatchPublishDialog = async () => {
+  if (selectedArticles.value.length === 0) {
+    ElMessage.warning('请选择要发布的文章')
+    return
+  }
+  currentPublishArticle.value = selectedArticles.value[0]
+  isBatchPublishing.value = true
+  useTemplate.value = false
+  selectedTemplateId.value = null
+  useEmojiPrefix.value = true
+  selectedRegionTag.value = null
+  selectedTypeTag.value = null
+  previewMessage.value = ''
+  previewButtons.value = []
+  await loadTemplates()
+  templateDialogVisible.value = true
+}
+
+const handleSelectionChange = (rows) => {
+  selectedArticles.value = rows
+}
+
+const buildPublishPayload = () => ({
+  useTemplate: useTemplate.value,
+  templateId: useTemplate.value ? selectedTemplateId.value : null,
+  useEmoji: useEmojiPrefix.value,
+  regionTag: selectedRegionTag.value,
+  typeTag: selectedTypeTag.value
+})
+
+const generatePublishPreview = async () => {
+  if (!currentPublishArticle.value) return
+
+  previewLoading.value = true
+  try {
+    const res = await previewApi.getPreview(currentPublishArticle.value.id, buildPublishPayload())
+    if (res.code === 200) {
+      previewMessage.value = res.data.fullMessage || res.data.preview?.telegramStyle || ''
+      previewButtons.value = res.data.buttonRows || res.data.buttons || []
+    } else {
+      ElMessage.error(res.message || '生成预览失败')
+    }
+  } catch (error) {
+    ElMessage.error('生成预览失败：' + (error.message || '网络错误'))
+  } finally {
+    previewLoading.value = false
+  }
 }
 
 // 确认使用模板发布
 const confirmPublishWithTemplate = async () => {
   if (!currentPublishArticle.value) return
-  
-  publishingId.value = currentPublishArticle.value.id
+   
+  publishingId.value = isBatchPublishing.value ? 'batch' : currentPublishArticle.value.id
   templateDialogVisible.value = false
-  
+   
   try {
-    const res = await publishWithTemplate(currentPublishArticle.value.id, {
-      templateId: selectedTemplateId.value,
-      useEmoji: useEmojiPrefix.value,
-      regionTag: selectedRegionTag.value,
-      typeTag: selectedTypeTag.value
-    })
+    const payload = buildPublishPayload()
+    const res = isBatchPublishing.value
+      ? await batchApi.publish(
+          selectedArticles.value.map(article => article.id),
+          payload.useTemplate,
+          payload.templateId,
+          payload.useEmoji,
+          payload.regionTag,
+          payload.typeTag
+        )
+      : await publishArticle(currentPublishArticle.value.id, payload)
     
     if (res.code === 200) {
-      ElMessage.success('发布成功')
+      ElMessage.success(isBatchPublishing.value ? res.message || '批量发布完成' : '发布成功')
+      selectedArticles.value = []
       fetchArticles()
     } else {
       ElMessage.error(res.message || '发布失败')
@@ -386,25 +454,12 @@ const confirmPublishWithTemplate = async () => {
   } finally {
     publishingId.value = null
     currentPublishArticle.value = null
+    isBatchPublishing.value = false
   }
 }
 
-// 原始发布函数（保留向后兼容）
 const publishArticleConfirm = async (row) => {
-  try {
-    await ElMessageBox.confirm('确定要发布这篇文章吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info'
-    })
-    
-    // 打开模板选择对话框
-    openTemplateDialog(row)
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('操作失败:', error)
-    }
-  }
+  openTemplateDialog(row)
 }
 
 const formatDate = (date) => {

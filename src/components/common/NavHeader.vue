@@ -78,8 +78,9 @@ const handleCommand = (command) => {
 }
 
 .container {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   padding: 0 20px;
   height: 60px;
   display: flex;

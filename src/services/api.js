@@ -32,7 +32,7 @@ export const rejectArticle = (id, reason) => request.post(`/review/${id}/reject`
 export const getAllArticles = (params) => request.get('/admin/articles', { params })
 export const getApprovedArticles = (params) => request.get('/admin/articles/approved', { params })
 export const getPublishingArticles = (params) => request.get('/admin/articles/publishing', { params })
-export const publishArticle = (id) => request.post(`/admin/article/${id}/publish`)
+export const publishArticle = (id, data = {}) => request.post(`/admin/article/${id}/publish`, data)
 
 // 文件上传投稿接口（支持两种认证方式）
 // 方式1：普通用户使用JWT（已登录）- 调用 /api/article/submit-with-files
@@ -85,9 +85,7 @@ export const commentApi = {
 // 系统配置接口
 export const configApi = {
   getAll: () => request.get('/admin/config'),
-  saveAll: (data) => request.post('/admin/config', data),
-  getPostfixTemplate: () => request.get('/admin/config/postfix-template'),
-  savePostfixTemplate: (template) => request.post('/admin/config/postfix-template', { template })
+  saveAll: (data) => request.post('/admin/config', data)
 }
 
 // AI润色接口
@@ -123,10 +121,6 @@ export const emojiConfigApi = {
   update: (id, data) => request.put(`/admin/emoji-config/${id}`, data)
 }
 
-// ========== 使用模板发布接口 ==========
-export const publishWithTemplate = (articleId, data) => 
-  request.post(`/admin/article/${articleId}/publish-with-template`, data)
-
 // ========== 批量操作接口 ==========
 export const batchApi = {
   // 批量审核通过
@@ -136,8 +130,8 @@ export const batchApi = {
   reject: (articleIds, reason) => request.post('/admin/batch/reject', { articleIds, reason }),
   
   // 批量发布
-  publish: (articleIds, templateId, useEmoji, regionTag, typeTag) => 
-    request.post('/admin/batch/publish', { articleIds, templateId, useEmoji, regionTag, typeTag }),
+  publish: (articleIds, useTemplate, templateId, useEmoji, regionTag, typeTag) => 
+    request.post('/admin/batch/publish', { articleIds, useTemplate, templateId, useEmoji, regionTag, typeTag }),
   
   // 批量删除
   delete: (articleIds) => request.post('/admin/batch/delete', { articleIds })
@@ -172,6 +166,6 @@ export const pipelineApi = {
   getArticles: (params) => request.get('/admin/pipeline/articles', { params }),
   getArticleDetail: (id) => request.get(`/admin/pipeline/articles/${id}`),
   preview: (articleId, pipeline) => request.post('/admin/pipeline/preview', { articleId, pipeline }),
-  process: (articleId, pipeline) => request.post('/admin/pipeline/process', { articleId, pipeline }),
+  process: (articleId, pipeline, data = {}) => request.post('/admin/pipeline/process', { articleId, pipeline, ...data }),
   batchProcess: (articleIds, pipeline) => request.post('/admin/pipeline/batch-process', { articleIds, pipeline }),
 }

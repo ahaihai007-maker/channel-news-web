@@ -161,7 +161,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getReviewDetail, approveArticle, rejectArticle, polishArticle, updateReviewArticle, publishArticle } from '@/services/api.js'
+import { getReviewDetail, approveArticle, rejectArticle, polishArticle, updateReviewArticle } from '@/services/api.js'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Check, Close, Document, MagicStick } from '@element-plus/icons-vue'
 
@@ -258,25 +258,7 @@ const handleApprove = async () => {
     if (res.code === 200) {
       ElMessage.success('审核通过成功')
       
-      // 如果是手动投稿，10秒后自动发布
-      if (article.value.articleType === 'MANUAL') {
-        ElMessage.info('手动投稿文章，10秒后自动发布...')
-        setTimeout(async () => {
-          try {
-            const publishRes = await publishArticle(article.value.id)
-            if (publishRes.code === 200) {
-              ElMessage.success('自动发布成功')
-            } else {
-              ElMessage.warning('自动发布失败: ' + (publishRes.message || '未知错误'))
-            }
-          } catch (publishError) {
-            console.error('自动发布失败:', publishError)
-            ElMessage.error('自动发布失败')
-          }
-        }, 10000) // 10秒后自动发布
-      }
-      
-      router.push('/admin/article-manage')
+      router.push('/admin/publish')
     }
   } catch (error) {
     ElMessage.error('审核操作失败')

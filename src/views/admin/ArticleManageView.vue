@@ -76,7 +76,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPendingReviews, getApprovedArticles, getPublishingArticles, getAllArticles, publishArticle, submitArticleWithFiles, getArticleDetail, batchApi, previewApi, tagApi } from '@/services/api.js'
+import { getPendingReviews, getApprovedArticles, getPublishingArticles, getAllArticles, submitArticleWithFiles, getArticleDetail, batchApi, previewApi, tagApi } from '@/services/api.js'
 import ArticleManageSearch from '@/components/admin/article-manage/ArticleManageSearch.vue'
 import ArticleManageTable from '@/components/admin/article-manage/ArticleManageTable.vue'
 import QuickSubmitDialog from '@/components/admin/article-manage/QuickSubmitDialog.vue'
@@ -305,36 +305,8 @@ const reviewArticle = (row) => {
   router.push(`/admin/review/${row.id}`)
 }
 
-// 发布文章确认
-const publishArticleConfirm = async (row) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要发布文章 "${row.title}" 吗？`,
-      '确认发布',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
-    publishingId.value = row.id
-    const res = await publishArticle(row.id)
-    
-    if (res.code === 200) {
-      ElMessage.success('发布成功')
-      fetchArticles()
-    } else {
-      ElMessage.error(res.message || '发布失败')
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('发布失败:', error)
-      ElMessage.error('发布失败')
-    }
-  } finally {
-    publishingId.value = null
-  }
+const publishArticleConfirm = () => {
+  router.push('/admin/publish')
 }
 
 // 显示快速投稿弹窗
@@ -539,32 +511,7 @@ const handleBatchPublish = async () => {
     return
   }
 
-  try {
-    await ElMessageBox.confirm(
-      `确定要批量发布选中的 ${selectedArticles.value.length} 篇文章吗？\n注意：批量发布可能需要较长时间，请耐心等待。`,
-      '确认批量发布',
-      { type: 'warning' }
-    )
-
-    batchLoading.value = true
-    const articleIds = selectedArticles.value.map(a => a.id)
-
-    const res = await batchApi.publish(articleIds)
-    if (res.code === 200) {
-      ElMessage.success(`发布完成：成功 ${res.data.successCount}/${res.data.total}`)
-      clearSelection()
-      fetchArticles()
-    } else {
-      ElMessage.error(res.message || '批量发布失败')
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('批量发布失败:', error)
-      ElMessage.error('批量发布失败')
-    }
-  } finally {
-    batchLoading.value = false
-  }
+  router.push('/admin/publish')
 }
 
 // 批量删除

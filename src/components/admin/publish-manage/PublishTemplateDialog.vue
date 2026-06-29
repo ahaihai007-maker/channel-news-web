@@ -1,45 +1,73 @@
 <script setup>
+import { computed } from 'vue'
+
 const visible = defineModel('visible', { required: true })
+const useTemplate = defineModel('useTemplate', { required: true })
 const selectedTemplateId = defineModel('selectedTemplateId', { required: true })
 const useEmojiPrefix = defineModel('useEmojiPrefix', { required: true })
 const selectedRegionTag = defineModel('selectedRegionTag', { required: true })
 const selectedTypeTag = defineModel('selectedTypeTag', { required: true })
 
-defineProps({
+const props = defineProps({
   loading: { type: Boolean, required: true },
   templates: { type: Array, required: true },
   regionTags: { type: Array, required: true },
   typeTags: { type: Array, required: true },
-  publishing: { type: Boolean, required: true }
+  publishing: { type: Boolean, required: true },
+  previewLoading: { type: Boolean, required: true },
+  previewMessage: { type: String, default: '' },
+  previewButtons: { type: Array, default: () => [] }
 })
 
-defineEmits(['confirm'])
+defineEmits(['confirm', 'preview'])
+
+const previewButtonRows = computed(() => {
+  if (!props.previewButtons.length) return []
+  if (Array.isArray(props.previewButtons[0])) return props.previewButtons
+  return [props.previewButtons]
+})
 </script>
 
 <template>
   <el-dialog
     v-model="visible"
-    title="选择发布模板"
-    width="500px"
+    title="发布设置"
+    width="640px"
     :close-on-click-modal="false"
   >
     <div v-loading="loading">
       <el-form label-width="100px">
-        <el-form-item label="后缀模板">
-          <el-select v-model="selectedTemplateId" placeholder="选择模板（可选）" clearable style="width: 100%">
+        <el-form-item label="模板修饰">
+          <el-radio-group v-model="useTemplate">
+            <el-radio :label="false">不使用模板</el-radio>
+            <el-radio :label="true">使用模板</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item label="模板">
+          <el-select
+            v-model="selectedTemplateId"
+            placeholder="不选择则使用默认后缀模板"
+            clearable
+            :disabled="!useTemplate"
+            style="width: 100%"
+          >
             <el-option
-              v-for="template in templates.filter(t => t.templateType === 'postfix')"
+              v-for="template in templates"
               :key="template.id"
-              :label="template.name + (template.isDefault ? ' (默认)' : '')"
+              :label="template.name + ' / ' + (template.templateType === 'header' ? '头部' : '后缀') + (template.isDefault ? ' (默认)' : '')"
               :value="template.id"
             >
               <div class="template-option">
                 <span>{{ template.name }}</span>
-                <span v-if="template.isDefault" class="default-tag">默认</span>
+                <span>
+                  <span class="type-tag">{{ template.templateType === 'header' ? '头部' : '后缀' }}</span>
+                  <span v-if="template.isDefault" class="default-tag">默认</span>
+                </span>
               </div>
             </el-option>
           </el-select>
-          <div v-if="selectedTemplateId" class="template-preview">
+          <div v-if="useTemplate && selectedTemplateId" class="template-preview">
             <el-divider content-position="left">预览</el-divider>
             <div class="preview-content">
               {{ templates.find(t => t.id === selectedTemplateId)?.content }}
@@ -78,6 +106,30 @@ defineEmits(['confirm'])
           <div class="tag-hint">用于生成 L1 头部标识和Emoji前缀</div>
         </el-form-item>
       </el-form>
+
+      <div class="message-preview">
+        <div class="preview-header">
+          <span>发布预览</span>
+          <el-button size="small" :loading="previewLoading" @click="$emit('preview')">生成预览</el-button>
+        </div>
+        <pre v-if="previewMessage" class="message-content">{{ previewMessage }}</pre>
+        <div v-if="previewButtonRows.length > 0" class="preview-buttons">
+          <div
+            v-for="(row, rowIndex) in previewButtonRows"
+            :key="rowIndex"
+            class="preview-button-row"
+          >
+            <a
+              v-for="(btn, idx) in row"
+              :key="idx"
+              :href="btn.url"
+              target="_blank"
+              class="preview-button"
+            >{{ btn.text }}</a>
+          </div>
+        </div>
+        <el-empty v-else-if="!previewMessage" description="点击生成预览查看最终拼接内容" :image-size="60" />
+      </div>
     </div>
 
     <template #footer>
@@ -102,6 +154,15 @@ defineEmits(['confirm'])
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 12px;
+}
+
+.type-tag {
+  background: #ecf5ff;
+  color: #409eff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-right: 6px;
 }
 
 .template-preview {
@@ -129,5 +190,64 @@ defineEmits(['confirm'])
   margin-top: 6px;
   font-size: 12px;
   color: #909399;
+}
+
+.message-preview {
+  margin-top: 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.message-content {
+  margin: 0;
+  padding: 12px;
+  min-height: 160px;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #fff;
+  border-radius: 4px;
+  color: #303133;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.preview-buttons {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preview-button {
+  display: inline-block;
+  padding: 6px 16px;
+  background: #409eff;
+  color: #fff;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.preview-button:hover {
+  background: #337ecc;
 }
 </style>

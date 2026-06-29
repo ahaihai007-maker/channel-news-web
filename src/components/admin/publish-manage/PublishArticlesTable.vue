@@ -3,6 +3,7 @@ defineProps({
   articles: { type: Array, required: true },
   loading: { type: Boolean, required: true },
   total: { type: Number, required: true },
+  selectedCount: { type: Number, default: 0 },
   publishingId: { type: [Number, String], default: null },
   formatDate: { type: Function, required: true }
 })
@@ -10,7 +11,7 @@ defineProps({
 const currentPage = defineModel('currentPage', { required: true })
 const pageSize = defineModel('pageSize', { required: true })
 
-defineEmits(['view-detail', 'publish', 'page-change'])
+defineEmits(['view-detail', 'publish', 'batch-publish', 'selection-change', 'page-change'])
 </script>
 
 <template>
@@ -18,10 +19,25 @@ defineEmits(['view-detail', 'publish', 'page-change'])
     <template #header>
       <div class="card-header">
         <span>待发布稿件 (共 {{ total }} 条)</span>
+        <el-button
+          type="primary"
+          :disabled="selectedCount === 0 || publishingId === 'batch'"
+          :loading="publishingId === 'batch'"
+          @click="$emit('batch-publish')"
+        >
+          {{ publishingId === 'batch' ? '批量发布中...' : `批量发布(${selectedCount})` }}
+        </el-button>
       </div>
     </template>
 
-    <el-table :data="articles" v-loading="loading" style="width: 100%">
+    <el-table
+      :data="articles"
+      v-loading="loading"
+      style="width: 100%"
+      @selection-change="$emit('selection-change', $event)"
+    >
+      <el-table-column type="selection" width="45" />
+
       <el-table-column prop="id" label="ID" width="60" />
 
       <el-table-column label="标题" min-width="250">
@@ -83,6 +99,9 @@ defineEmits(['view-detail', 'publish', 'page-change'])
 <style scoped>
 .card-header {
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .pagination-container {

@@ -1,9 +1,11 @@
 <script setup>
+import { computed } from 'vue'
+
 const visible = defineModel('visible', { required: true })
 const regionTag = defineModel('regionTag', { required: true })
 const typeTag = defineModel('typeTag', { required: true })
 
-defineProps({
+const props = defineProps({
   loading: { type: Boolean, required: true },
   previewData: { type: Object, default: null },
   regionTags: { type: Array, required: true },
@@ -11,6 +13,13 @@ defineProps({
 })
 
 defineEmits(['generate', 'close'])
+
+const previewButtonRows = computed(() => {
+  const buttons = props.previewData?.buttonRows || props.previewData?.buttons || []
+  if (!buttons.length) return []
+  if (Array.isArray(buttons[0])) return buttons
+  return [buttons]
+})
 </script>
 
 <template>
@@ -80,6 +89,25 @@ defineEmits(['generate', 'close'])
         <div class="l6-section">
           <div class="section-label">L6 - 装修模版</div>
           <div class="section-content" v-html="previewData.l6Postfix"></div>
+        </div>
+
+        <div v-if="previewButtonRows.length > 0" class="inline-buttons-section">
+          <div class="section-label">Inline 按钮</div>
+          <div class="buttons-list">
+            <div
+              v-for="(row, rowIndex) in previewButtonRows"
+              :key="rowIndex"
+              class="buttons-row"
+            >
+              <a
+                v-for="(btn, idx) in row"
+                :key="idx"
+                :href="btn.url"
+                target="_blank"
+                class="preview-inline-button"
+              >{{ btn.text }}</a>
+            </div>
+          </div>
         </div>
 
         <el-divider />
@@ -156,5 +184,46 @@ defineEmits(['generate', 'close'])
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+.inline-buttons-section {
+  margin-bottom: 16px;
+}
+
+.inline-buttons-section .section-content {
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 0;
+}
+
+.buttons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preview-inline-button {
+  display: inline-block;
+  padding: 6px 16px;
+  background: #409eff;
+  color: #fff;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.preview-inline-button:hover {
+  background: #337ecc;
 }
 </style>
