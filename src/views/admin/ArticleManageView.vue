@@ -69,25 +69,49 @@
       @generate="generatePreview"
       @close="closePreviewDialog"
     />
+
+    <PublishTemplateDialog
+      v-model:visible="templateDialogVisible"
+      v-model:use-template="useTemplate"
+      v-model:selected-template-id="selectedTemplateId"
+      v-model:use-emoji-prefix="useEmojiPrefix"
+      v-model:selected-region-tag="selectedRegionTag"
+      v-model:selected-type-tag="selectedTypeTag"
+      :loading="loadingTemplates"
+      :templates="templates"
+      :region-tags="publishRegionTags"
+      :type-tags="publishTypeTags"
+      :publishing="publishingId === 'batch' || publishingId === currentPublishArticle?.id"
+      :preview-loading="publishPreviewLoading"
+      :preview-message="publishPreviewMessage"
+      :preview-buttons="publishPreviewButtons"
+      @preview="generatePublishPreview"
+      @confirm="confirmPublishWithTemplate"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPendingReviews, getApprovedArticles, getPublishingArticles, getAllArticles, submitArticleWithFiles, getArticleDetail, batchApi, previewApi, tagApi } from '@/services/api.js'
+import { getPendingReviews, getApprovedArticles, getAllArticles, submitArticleWithFiles, getArticleDetail, publishArticle, messageTemplateApi, batchApi, previewApi, tagApi } from '@/services/api.js'
 import ArticleManageSearch from '@/components/admin/article-manage/ArticleManageSearch.vue'
 import ArticleManageTable from '@/components/admin/article-manage/ArticleManageTable.vue'
 import QuickSubmitDialog from '@/components/admin/article-manage/QuickSubmitDialog.vue'
 import TelegramArticlePreviewDialog from '@/components/admin/article-manage/TelegramArticlePreviewDialog.vue'
 import MessagePreviewDialog from '@/components/admin/article-manage/MessagePreviewDialog.vue'
+import PublishTemplateDialog from '@/components/admin/publish-manage/PublishTemplateDialog.vue'
 
 const router = useRouter()
+const route = useRoute()
+
+const allowedStatuses = new Set(['pending', 'approved', 'published', 'all'])
+const initialStatus = allowedStatuses.has(route.query.status) ? route.query.status : 'pending'
 
 // 搜索表单
 const searchForm = reactive({
-  status: 'pending', // pending, approved, all
+  status: initialStatus, // pending, approved, published, all
   keyword: '',
   authorType: '',
   dateRange: []
@@ -183,7 +207,7 @@ const getStatusTitle = () => {
   const titles = {
     'pending': '待审核稿件',
     'approved': '已审核稿件',
-    'publishing': '发布中稿件',
+    'published': '已发布稿件',
     'all': '全部稿件'
   }
   return titles[searchForm.status] || '稿件管理'
@@ -282,8 +306,8 @@ const fetchArticles = async () => {
       res = await getPendingReviews(params)
     } else if (searchForm.status === 'approved') {
       res = await getApprovedArticles(params)
-    } else if (searchForm.status === 'publishing') {
-      res = await getPublishingArticles(params)
+    } else if (searchForm.status === 'published') {
+      res = await getAllArticles({ ...params, status: 'PUBLISHED' })
     } else {
       res = await getAllArticles(params)
     }
@@ -303,10 +327,6 @@ const fetchArticles = async () => {
 // 审核文章
 const reviewArticle = (row) => {
   router.push(`/admin/review/${row.id}`)
-}
-
-const publishArticleConfirm = () => {
-  router.push('/admin/publish')
 }
 
 // 显示快速投稿弹窗
@@ -431,6 +451,133 @@ const closePreviewDialog = () => {
   previewTypeTag.value = null
 }
 
+// ========== 本页发布 ==========
+const templateDialogVisible = ref(false)
+const currentPublishArticle = ref(null)
+const isBatchPublishing = ref(false)
+const templates = ref([])
+const useTemplate = ref(false)
+const selectedTemplateId = ref(null)
+const useEmojiPrefix = ref(true)
+const loadingTemplates = ref(false)
+const publishPreviewLoading = ref(false)
+const publishPreviewMessage = ref('')
+const publishPreviewButtons = ref([])
+const publishRegionTags = ref([])
+const publishTypeTags = ref([])
+const selectedRegionTag = ref(null)
+const selectedTypeTag = ref(null)
+
+const resetPublishDialogState = () => {
+  useTemplate.value = false
+  selectedTemplateId.value = null
+  useEmojiPrefix.value = true
+  selectedRegionTag.value = null
+  selectedTypeTag.value = null
+  publishPreviewMessage.value = ''
+  publishPreviewButtons.value = []
+}
+
+const loadPublishOptions = async () => {
+  loadingTemplates.value = true
+  try {
+    const [templateRes, regionRes, typeRes] = await Promise.all([
+      messageTemplateApi.getList(),
+      tagApi.getRegions(),
+      tagApi.getTypes()
+    ])
+    if (templateRes.code === 200) {
+      templates.value = templateRes.data || []
+    }
+    if (regionRes.code === 200) {
+      publishRegionTags.value = regionRes.data || []
+    }
+    if (typeRes.code === 200) {
+      publishTypeTags.value = typeRes.data || []
+    }
+  } catch (error) {
+    console.error('加载发布配置失败:', error)
+    ElMessage.error('加载发布配置失败')
+  } finally {
+    loadingTemplates.value = false
+  }
+}
+
+const publishArticleConfirm = async (row) => {
+  if (!row || row.status !== 'APPROVED') {
+    ElMessage.warning('只有已审核文章可以发布')
+    return
+  }
+  currentPublishArticle.value = row
+  isBatchPublishing.value = false
+  resetPublishDialogState()
+  await loadPublishOptions()
+  templateDialogVisible.value = true
+}
+
+const buildPublishPayload = () => ({
+  useTemplate: useTemplate.value,
+  templateId: useTemplate.value ? selectedTemplateId.value : null,
+  useEmoji: useEmojiPrefix.value,
+  regionTag: selectedRegionTag.value,
+  typeTag: selectedTypeTag.value
+})
+
+const generatePublishPreview = async () => {
+  if (!currentPublishArticle.value) return
+
+  publishPreviewLoading.value = true
+  try {
+    const res = await previewApi.getPreview(currentPublishArticle.value.id, buildPublishPayload())
+    if (res.code === 200) {
+      publishPreviewMessage.value = res.data.fullMessage || res.data.preview?.telegramStyle || ''
+      publishPreviewButtons.value = res.data.buttonRows || res.data.buttons || []
+    } else {
+      ElMessage.error(res.message || '生成预览失败')
+    }
+  } catch (error) {
+    ElMessage.error('生成预览失败')
+  } finally {
+    publishPreviewLoading.value = false
+  }
+}
+
+const confirmPublishWithTemplate = async () => {
+  if (!currentPublishArticle.value) return
+
+  publishingId.value = isBatchPublishing.value ? 'batch' : currentPublishArticle.value.id
+  templateDialogVisible.value = false
+  try {
+    const payload = buildPublishPayload()
+    const res = isBatchPublishing.value
+      ? await batchApi.publish(
+          selectedArticles.value
+            .filter(article => article.status === 'APPROVED')
+            .map(article => article.id),
+          payload.useTemplate,
+          payload.templateId,
+          payload.useEmoji,
+          payload.regionTag,
+          payload.typeTag
+        )
+      : await publishArticle(currentPublishArticle.value.id, payload)
+
+    if (res.code === 200) {
+      ElMessage.success(isBatchPublishing.value ? res.message || '批量发布完成' : '发布成功')
+      clearSelection()
+      fetchArticles()
+    } else {
+      ElMessage.error(res.message || '发布失败')
+    }
+  } catch (error) {
+    ElMessage.error('发布失败')
+  } finally {
+    publishingId.value = null
+    currentPublishArticle.value = null
+    isBatchPublishing.value = false
+  }
+}
+
 // 批量审核通过
 const handleBatchApprove = async () => {
   if (selectedArticles.value.length === 0) {
@@ -506,12 +653,17 @@ const handleBatchReject = async () => {
 
 // 批量发布
 const handleBatchPublish = async () => {
-  if (selectedArticles.value.length === 0) {
+  const approvedArticles = selectedArticles.value.filter(article => article.status === 'APPROVED')
+  if (approvedArticles.length === 0) {
     ElMessage.warning('请选择要发布的文章')
     return
   }
 
-  router.push('/admin/publish')
+  currentPublishArticle.value = approvedArticles[0]
+  isBatchPublishing.value = true
+  resetPublishDialogState()
+  await loadPublishOptions()
+  templateDialogVisible.value = true
 }
 
 // 批量删除

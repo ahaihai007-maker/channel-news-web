@@ -12,7 +12,7 @@ defineEmits(['status-change', 'search', 'reset', 'refresh', 'open-submit'])
         <el-radio-group v-model="searchForm.status" @change="$emit('status-change')">
           <el-radio-button label="pending">待审核</el-radio-button>
           <el-radio-button label="approved">已审核</el-radio-button>
-          <el-radio-button label="publishing">发布中</el-radio-button>
+          <el-radio-button label="published">已发布</el-radio-button>
           <el-radio-button label="all">全部</el-radio-button>
         </el-radio-group>
       </div>

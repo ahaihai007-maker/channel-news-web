@@ -257,8 +257,7 @@ const handleApprove = async () => {
     const res = await approveArticle(article.value.id)
     if (res.code === 200) {
       ElMessage.success('审核通过成功')
-      
-      router.push('/admin/publish')
+      router.push('/admin/article-manage?status=approved')
     }
   } catch (error) {
     ElMessage.error('审核操作失败')

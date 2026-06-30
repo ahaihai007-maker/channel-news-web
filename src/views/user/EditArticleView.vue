@@ -147,7 +147,7 @@ const submitForm = async () => {
     const res = await updateArticle(route.params.id, form.value)
     if (res.code === 200) {
       ElMessage.success('更新成功')
-      router.push('/user/articles')
+      router.push('/user/article/create')
     }
   } catch (error) {
     ElMessage.error('更新失败')

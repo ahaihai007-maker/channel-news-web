@@ -101,11 +101,18 @@ const assignForm = (data) => {
   Object.keys(publishChannelMeta).forEach((key) => {
     delete publishChannelMeta[key]
   })
+  const detailsByInput = {}
+  const detailsById = {}
+  ;(data.telegramChannelDetails || []).forEach((detail) => {
+    if (detail.input) detailsByInput[detail.input] = detail
+    if (detail.channelId) detailsById[detail.channelId] = detail
+  })
   form.telegramChannels.forEach((channel) => {
+    const detail = detailsByInput[channel] || detailsById[channel] || {}
     publishChannelMeta[channel] = {
-      title: '',
-      channelId: channel.startsWith('-100') ? channel : '',
-      username: channel.startsWith('@') ? channel : ''
+      title: detail.title || '',
+      channelId: detail.channelId || (channel.startsWith('-100') ? channel : ''),
+      username: detail.username || (channel.startsWith('@') ? channel : '')
     }
   })
   form.telegramApiId = data.telegramApiId || 0
@@ -238,6 +245,23 @@ const buildPayload = () => ({
   monitorPollInterval: Number(form.monitorPollInterval)
 })
 
+const preservePublishChannelMeta = (channels) => {
+  const previousMeta = { ...publishChannelMeta }
+  Object.keys(publishChannelMeta).forEach((key) => {
+    delete publishChannelMeta[key]
+  })
+  form.telegramChannels = normalizeChannels(channels)
+  form.telegramChannels.forEach((channel) => {
+    const previousEntry = Object.values(previousMeta).find((meta) => meta.channelId === channel)
+    const meta = previousMeta[channel] || previousEntry || {}
+    publishChannelMeta[channel] = {
+      title: meta.title || '',
+      channelId: meta.channelId || (channel.startsWith('-100') ? channel : ''),
+      username: meta.username || (channel.startsWith('@') ? channel : '')
+    }
+  })
+}
+
 const saveConfig = async () => {
   let valid = false
   try {
@@ -258,7 +282,8 @@ const saveConfig = async () => {
       return false
     }
 
-    assignForm({ ...payload, monitorChannels: payload.monitorChannels })
+    preservePublishChannelMeta(payload.telegramChannels)
+    form.monitorChannels = payload.monitorChannels
     ElMessage.success('配置已保存，运行中组件将自动重新加载')
 
     const warnings = res.data?.warnings || []

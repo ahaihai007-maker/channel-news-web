@@ -21,7 +21,6 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="articles">我的文章</el-dropdown-item>
                 <el-dropdown-item command="submit">投稿</el-dropdown-item>
                 <el-dropdown-item v-if="userStore.isAdmin" command="admin">管理后台</el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
@@ -50,9 +49,6 @@ const userStore = useUserStore()
 
 const handleCommand = (command) => {
   switch (command) {
-    case 'articles':
-      router.push('/user/articles')
-      break
     case 'submit':
       router.push('/user/article/create')
       break

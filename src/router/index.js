@@ -8,7 +8,7 @@ const routes = [
       // Dynamic redirect based on login state to avoid loops
       const userStore = useUserStore()
       if (userStore.isLoggedIn) {
-        return userStore.isAdmin ? '/admin/articles' : '/user/articles'
+        return userStore.isAdmin ? '/admin/article-manage' : '/user/article/create'
       }
       return '/login'
     }
@@ -34,7 +34,7 @@ const routes = [
       {
         path: 'articles',
         name: 'UserArticles',
-        component: () => import('../views/user/MyArticlesView.vue')
+        redirect: '/user/article/create'
       },
       {
         path: 'article/create',
@@ -141,12 +141,12 @@ router.beforeEach((to, from, next) => {
 
   // 需要管理员权限但非管理员
   if (to.meta.requiresAdmin && !isAdmin) {
-    return next(isLoggedIn ? '/user/articles' : '/login')
+    return next(isLoggedIn ? '/user/article/create' : '/login')
   }
 
   // 仅限游客访问（如登录页）
   if (to.meta.guestOnly && isLoggedIn) {
-    return next(isAdmin ? '/admin/articles' : '/user/articles')
+    return next(isAdmin ? '/admin/article-manage' : '/user/article/create')
   }
 
   next()

@@ -249,7 +249,14 @@ const submitForm = async () => {
     
     if (res.code === 200) {
       ElMessage.success(`投稿成功！${res.data.fileCount > 0 ? `上传了 ${res.data.fileCount} 个文件` : ''}`)
-      router.push('/user/articles')
+      form.value = {
+        title: '',
+        summary: '',
+        content: ''
+      }
+      fileList.value = []
+      uploadRef.value?.clearFiles()
+      formRef.value?.clearValidate()
     } else {
       ElMessage.error(res.message || '投稿失败')
     }
