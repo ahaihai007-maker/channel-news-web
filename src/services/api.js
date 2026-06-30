@@ -88,6 +88,15 @@ export const configApi = {
   saveAll: (data) => request.post('/admin/config', data)
 }
 
+export const telegramConfigApi = {
+  get: () => request.get('/admin/telegram-config'),
+  update: (data) => request.put('/admin/telegram-config', data),
+  resolveChannel: (data) => request.post('/admin/telegram-config/resolve-channel', data),
+  getSessionStatus: () => request.get('/admin/telegram-session/status'),
+  sendSessionCode: () => request.post('/admin/telegram-session/send-code'),
+  verifySession: (data) => request.post('/admin/telegram-session/verify', data)
+}
+
 // AI润色接口
 export const polishArticle = (id) => request.post(`/review/${id}/polish`)
 
@@ -152,13 +161,28 @@ export const previewApi = {
   getPreview: (articleId, data) => request.post(`/admin/article/${articleId}/preview`, data)
 }
 
-// ========== 频道监控接口 ==========
-export const channelMonitorApi = {
-  getConfig: () => request.get('/admin/config'),
-  saveChannels: (channels, enabled) => request.post('/admin/config', {
-    monitor_channels: channels,
-    monitor_enabled: enabled ? '1' : '0'
-  })
+// ========== 广告模板与定时发送接口 ==========
+export const adApi = {
+  getTemplates: (params) => request.get('/admin/ads/templates', { params }),
+  getTemplate: (id) => request.get(`/admin/ads/templates/${id}`),
+  createTemplate: (data) => request.post('/admin/ads/templates', data),
+  updateTemplate: (id, data) => request.put(`/admin/ads/templates/${id}`, data),
+  deleteTemplate: (id) => request.delete(`/admin/ads/templates/${id}`),
+  sendNow: (id) => request.post(`/admin/ads/templates/${id}/send-now`),
+  uploadTemplateFiles: (templateId, files) => {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+    return request.post(`/admin/ads/templates/${templateId}/files`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  deleteTemplateFile: (templateId, fileId) => request.delete(`/admin/ads/templates/${templateId}/files/${fileId}`),
+  updateFileOrder: (templateId, fileIds) => request.put(`/admin/ads/templates/${templateId}/files/order`, { fileIds }),
+  getSchedules: (params) => request.get('/admin/ads/schedules', { params }),
+  createSchedule: (data) => request.post('/admin/ads/schedules', data),
+  updateSchedule: (id, data) => request.put(`/admin/ads/schedules/${id}`, data),
+  deleteSchedule: (id) => request.delete(`/admin/ads/schedules/${id}`),
+  getLogs: (params) => request.get('/admin/ads/logs', { params })
 }
 
 // ========== AI管线处理接口 ==========

@@ -96,38 +96,6 @@
       :saving="savingTemplate"
       @save="handleSaveTemplate"
     />
-
-    <el-card class="config-card" style="margin-top: 20px;">
-      <template #header>
-        <div class="card-header">
-          <span>频道监控管理</span>
-          <div class="header-controls">
-            <el-switch v-model="monitorEnabled" active-text="启用" inactive-text="停用" />
-            <el-button type="primary" size="small" @click="handleSaveChannels" :loading="savingChannels" style="margin-left: 12px;">
-              保存配置
-            </el-button>
-          </div>
-        </div>
-      </template>
-
-      <div class="channel-controls">
-        <el-input v-model="newChannel" placeholder="输入频道 username 或链接 (如 @channel_name 或 https://t.me/channel)" style="width: 400px;" @keyup.enter="addChannel" />
-        <el-button type="primary" size="small" @click="addChannel" style="margin-left: 10px;">
-          <el-icon><Plus /></el-icon>
-          添加
-        </el-button>
-      </div>
-
-      <el-table :data="channelItems" style="margin-top: 15px;" v-if="channelItems.length > 0">
-        <el-table-column prop="name" label="频道" />
-        <el-table-column label="操作" width="100">
-          <template #default="scope">
-            <el-button link type="danger" size="small" @click="removeChannel(scope.$index)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-empty v-else description="暂未配置监控频道" :image-size="60" />
-    </el-card>
   </div>
 </template>
 
@@ -137,7 +105,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import MessageTemplateDialog from '@/components/admin/config/MessageTemplateDialog.vue'
 import MessageTemplateTable from '@/components/admin/config/MessageTemplateTable.vue'
-import { channelMonitorApi, emojiConfigApi, messageTemplateApi } from '../../services/api.js'
+import { emojiConfigApi, messageTemplateApi } from '../../services/api.js'
 
 const activeTemplateType = ref('postfix')
 const templates = ref([])
@@ -151,11 +119,6 @@ const postfixTemplates = computed(() => templates.value.filter((template) => tem
 const headerTemplates = computed(() => templates.value.filter((template) => template.templateType === 'header'))
 
 const emojiConfigs = ref([])
-
-const newChannel = ref('')
-const channelItems = ref([])
-const monitorEnabled = ref(false)
-const savingChannels = ref(false)
 
 const loadTemplates = async () => {
   templatesLoading.value = true
@@ -268,54 +231,6 @@ const loadEmojiConfigs = async () => {
   }
 }
 
-const loadChannelConfig = async () => {
-  try {
-    const res = await channelMonitorApi.getConfig()
-    if (res.code === 200 && res.data) {
-      const channels = res.data.monitor_channels || ''
-      channelItems.value = channels
-        ? channels.split(',').map((channel) => ({ name: channel.trim() })).filter((channel) => channel.name)
-        : []
-      monitorEnabled.value = res.data.monitor_enabled === '1'
-    }
-  } catch (error) {
-    console.error('加载频道配置失败:', error)
-  }
-}
-
-const addChannel = () => {
-  const val = newChannel.value.trim()
-  if (!val) return
-  if (channelItems.value.some((channel) => channel.name === val)) {
-    ElMessage.warning('频道已存在')
-    return
-  }
-  channelItems.value.push({ name: val })
-  newChannel.value = ''
-}
-
-const removeChannel = (index) => {
-  channelItems.value.splice(index, 1)
-}
-
-const handleSaveChannels = async () => {
-  savingChannels.value = true
-  try {
-    const channels = channelItems.value.map((channel) => channel.name).join(',')
-    const res = await channelMonitorApi.saveChannels(channels, monitorEnabled.value)
-    if (res.code === 200) {
-      ElMessage.success('频道配置保存成功')
-    } else {
-      ElMessage.error(res.message || '保存失败')
-    }
-  } catch (error) {
-    console.error('保存频道配置失败:', error)
-    ElMessage.error('保存失败')
-  } finally {
-    savingChannels.value = false
-  }
-}
-
 const handleSaveEmoji = async (row) => {
   try {
     const res = await emojiConfigApi.update(row.id, {
@@ -337,7 +252,6 @@ const handleSaveEmoji = async (row) => {
 onMounted(() => {
   loadTemplates()
   loadEmojiConfigs()
-  loadChannelConfig()
 })
 </script>
 
@@ -398,13 +312,4 @@ onMounted(() => {
   margin: 5px 0;
 }
 
-.channel-controls {
-  display: flex;
-  align-items: center;
-}
-
-.header-controls {
-  display: flex;
-  align-items: center;
-}
 </style>

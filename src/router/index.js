@@ -100,6 +100,16 @@ const routes = [
         component: () => import('../views/admin/ConfigView.vue')
       },
       {
+        path: 'telegram-config',
+        name: 'AdminTelegramConfig',
+        component: () => import('../views/admin/TelegramConfigView.vue')
+      },
+      {
+        path: 'ads',
+        name: 'AdminAds',
+        component: () => import('../views/admin/AdTemplateView.vue')
+      },
+      {
         path: 'pipeline',
         name: 'AdminPipeline',
         component: () => import('../views/admin/PipelineView.vue')

@@ -31,6 +31,16 @@
             <span>装修模版</span>
           </el-menu-item>
 
+          <el-menu-item index="/admin/telegram-config">
+            <el-icon><Connection /></el-icon>
+            <span>Telegram 系统</span>
+          </el-menu-item>
+
+          <el-menu-item index="/admin/ads">
+            <el-icon><Promotion /></el-icon>
+            <span>广告模板</span>
+          </el-menu-item>
+
           <el-divider />
 
           <el-menu-item index="/admin/pipeline">
@@ -58,7 +68,7 @@
 import { ref, computed, onMounted, watch, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import NavHeader from '../components/common/NavHeader.vue'
-import { Bell, Timer, Upload, Odometer, User, Document, Setting, MagicStick, Money } from '@element-plus/icons-vue'
+import { Bell, Connection, Document, MagicStick, Money, Promotion, Setting } from '@element-plus/icons-vue'
 import { getPendingReviews } from '../services/api.js'
 
 const route = useRoute()
