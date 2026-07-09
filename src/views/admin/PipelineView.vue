@@ -60,7 +60,7 @@
 
               <el-popconfirm
                 width="260"
-                title="将使用智能分类直接处理并送审，确定继续？"
+                title="将使用标准新闻直接处理并送审，确定继续？"
                 confirm-button-text="确认快处理"
                 cancel-button-text="取消"
                 @confirm="quickProcess(scope.row)"
@@ -70,9 +70,9 @@
                     type="success"
                     size="small"
                     :loading="isRowProcessing(scope.row.id)"
-                    :disabled="isRowProcessing(scope.row.id)"
-                  >
-                    智能快处理
+                  :disabled="isRowProcessing(scope.row.id)"
+                >
+                    快处理
                   </el-button>
                 </template>
               </el-popconfirm>
@@ -212,18 +212,20 @@
 import { computed, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { PictureFilled, Loading } from '@element-plus/icons-vue'
-import { pipelineApi } from '../../services/api.js'
+import { aiPromptApi, pipelineApi } from '../../services/api.js'
 
-const pipelineOptions = [
-  { label: '智能分类', value: 'auto' },
+const fixedPipelineOptions = [
   { label: '标准新闻', value: 'standard' },
+  { label: '新闻观点评论', value: 'news_view_commentart' },
+]
+const fallbackPromptOptions = [
   { label: '园区爆款', value: 'clickbait' },
   { label: '社交病毒', value: 'viral' },
   { label: '极简摘要', value: 'summary' },
   { label: '心理框架', value: 'psycho' },
   { label: '流量收割', value: 'traffic' },
-  { label: '新闻观点评论', value: 'news_view_commentart' },
 ]
+const pipelineOptions = ref([...fixedPipelineOptions, ...fallbackPromptOptions])
 
 const articles = ref([])
 const loading = ref(false)
@@ -240,7 +242,7 @@ const processingIds = ref(new Set())
 const dialogVisible = ref(false)
 const dialogArticle = ref(null)
 const dialogOriginalHtml = ref('')
-const dialogPipeline = ref('auto')
+const dialogPipeline = ref('standard')
 const dialogResult = ref('')
 const dialogResultTitle = ref('')
 const dialogProcessing = ref(false)
@@ -280,6 +282,22 @@ const loadArticles = async () => {
   }
 }
 
+const loadPipelineOptions = async () => {
+  try {
+    const res = await aiPromptApi.getList()
+    if (res.code !== 200) return
+    const promptOptions = (res.data || [])
+      .filter((prompt) => prompt.isActive)
+      .map((prompt) => ({
+        label: prompt.name,
+        value: prompt.promptKey
+      }))
+    pipelineOptions.value = [...fixedPipelineOptions, ...promptOptions]
+  } catch (e) {
+    pipelineOptions.value = [...fixedPipelineOptions, ...fallbackPromptOptions]
+  }
+}
+
 const handleSelectionChange = (val) => {
   selection.value = val
 }
@@ -290,7 +308,7 @@ const openDialog = async (row) => {
   dialogResult.value = ''
   dialogResultTitle.value = ''
   dialogFiles.value = []
-  dialogPipeline.value = 'auto'
+  dialogPipeline.value = 'standard'
   dialogVisible.value = true
 
   try {
@@ -366,7 +384,7 @@ const quickProcess = async (row) => {
   if (isRowProcessing(row.id)) return
   processingIds.value.add(row.id)
   try {
-    const res = await pipelineApi.process(row.id, 'auto')
+    const res = await pipelineApi.process(row.id, 'standard')
     if (res.code === 200) {
       ElMessage.success('处理完成，已提交待审核')
       loadArticles()
@@ -403,6 +421,7 @@ const handleBatchProcess = async () => {
 }
 
 onMounted(() => {
+  loadPipelineOptions()
   loadArticles()
 })
 </script>

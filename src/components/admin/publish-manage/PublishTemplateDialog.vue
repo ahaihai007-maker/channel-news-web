@@ -7,12 +7,14 @@ const selectedTemplateId = defineModel('selectedTemplateId', { required: true })
 const useEmojiPrefix = defineModel('useEmojiPrefix', { required: true })
 const selectedRegionTag = defineModel('selectedRegionTag', { required: true })
 const selectedTypeTag = defineModel('selectedTypeTag', { required: true })
+const selectedTargetChannels = defineModel('selectedTargetChannels', { required: true })
 
 const props = defineProps({
   loading: { type: Boolean, required: true },
   templates: { type: Array, required: true },
   regionTags: { type: Array, required: true },
   typeTags: { type: Array, required: true },
+  channelOptions: { type: Array, default: () => [] },
   publishing: { type: Boolean, required: true },
   previewLoading: { type: Boolean, required: true },
   previewMessage: { type: String, default: '' },
@@ -105,6 +107,19 @@ const previewButtonRows = computed(() => {
           </el-select>
           <div class="tag-hint">用于生成 L1 头部标识和Emoji前缀</div>
         </el-form-item>
+
+        <el-form-item label="发布目标">
+          <el-checkbox-group v-model="selectedTargetChannels" class="channel-checks">
+            <el-checkbox
+              v-for="channel in channelOptions"
+              :key="channel.value"
+              :label="channel.value"
+            >
+              {{ channel.label }}
+            </el-checkbox>
+          </el-checkbox-group>
+          <div class="tag-hint">至少选择一个目标；默认选择全部已配置发布目标</div>
+        </el-form-item>
       </el-form>
 
       <div class="message-preview">
@@ -134,7 +149,12 @@ const previewButtonRows = computed(() => {
 
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :loading="publishing" @click="$emit('confirm')">
+      <el-button
+        type="primary"
+        :loading="publishing"
+        :disabled="selectedTargetChannels.length === 0"
+        @click="$emit('confirm')"
+      >
         {{ publishing ? '发布中...' : '确认发布' }}
       </el-button>
     </template>
@@ -190,6 +210,12 @@ const previewButtonRows = computed(() => {
   margin-top: 6px;
   font-size: 12px;
   color: #909399;
+}
+
+.channel-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .message-preview {

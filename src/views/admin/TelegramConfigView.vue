@@ -8,6 +8,8 @@ const formRef = ref(null)
 const loading = ref(false)
 const saving = ref(false)
 const sessionLoading = ref(false)
+const botStatusLoading = ref(false)
+const channelStatusLoading = ref(false)
 const sendingCode = ref(false)
 const verifyingSession = ref(false)
 const resolvingPublishChannel = ref('')
@@ -15,7 +17,9 @@ const newPublishChannel = ref('')
 const newMonitorChannel = ref('')
 const originalBotToken = ref('')
 const sessionStatus = ref(null)
+const botStatus = ref(null)
 const publishChannelMeta = reactive({})
+const channelStatusMap = reactive({})
 const sessionForm = reactive({
   code: '',
   password: '',
@@ -73,12 +77,15 @@ const monitorChannelRows = computed(() => (
 const publishChannelRows = computed(() => (
   form.telegramChannels.map((channel, index) => {
     const meta = publishChannelMeta[channel] || {}
+    const status = channelStatusMap[channel] || null
     return {
       id: `${channel}-${index}`,
       channel,
       title: meta.title || '',
       channelId: meta.channelId || (channel.startsWith('-100') ? channel : ''),
-      username: meta.username || (channel.startsWith('@') ? channel : '')
+      username: meta.username || (channel.startsWith('@') ? channel : ''),
+      targetType: meta.targetType || '',
+      status
     }
   })
 ))
@@ -87,12 +94,31 @@ const normalizeChannels = (channels) => {
   const seen = new Set()
   const normalized = []
   channels.forEach((item) => {
-    const channel = String(item || '').trim()
+    const channel = normalizeTelegramTarget(item)
     if (!channel || seen.has(channel)) return
     seen.add(channel)
     normalized.push(channel)
   })
   return normalized
+}
+
+const normalizeTelegramTarget = (value) => {
+  const target = String(value || '').trim()
+  if (!target) return ''
+  try {
+    const url = new URL(target)
+    if (!['t.me', 'telegram.me', 'www.t.me', 'www.telegram.me'].includes(url.hostname.toLowerCase())) {
+      return target
+    }
+    let parts = url.pathname.split('/').filter(Boolean)
+    if (parts[0] === 's') parts = parts.slice(1)
+    if (parts.length === 0) return target
+    if (parts[0] === 'c' && parts[1]) return `-100${parts[1]}`
+    if (parts[0].startsWith('+')) return target
+    return `@${parts[0].replace(/^@/, '')}`
+  } catch (error) {
+    return target
+  }
 }
 
 const assignForm = (data) => {
@@ -112,7 +138,8 @@ const assignForm = (data) => {
     publishChannelMeta[channel] = {
       title: detail.title || '',
       channelId: detail.channelId || (channel.startsWith('-100') ? channel : ''),
-      username: detail.username || (channel.startsWith('@') ? channel : '')
+      username: detail.username || (channel.startsWith('@') ? channel : ''),
+      targetType: detail.targetType || ''
     }
   })
   form.telegramApiId = data.telegramApiId || 0
@@ -132,6 +159,7 @@ const loadConfig = async () => {
     const res = await telegramConfigApi.get()
     if (res.code === 200) {
       assignForm(res.data || {})
+      await loadAllChannelStatus()
       return
     }
     ElMessage.error(res.message || '加载 Telegram 配置失败')
@@ -160,6 +188,73 @@ const loadSessionStatus = async () => {
   }
 }
 
+const loadBotStatus = async () => {
+  botStatusLoading.value = true
+  try {
+    const res = await telegramConfigApi.getBotStatus()
+    if (res.code === 200) {
+      botStatus.value = res.data || null
+      return
+    }
+    ElMessage.error(res.message || '加载 BOT 状态失败')
+  } catch (error) {
+    console.error('加载 BOT 状态失败:', error)
+    ElMessage.error('加载 BOT 状态失败')
+  } finally {
+    botStatusLoading.value = false
+  }
+}
+
+const getStatusTarget = (channel) => (
+  publishChannelMeta[channel]?.channelId || channel
+)
+
+const loadChannelStatus = async (channel) => {
+  const target = getStatusTarget(channel)
+  if (!target) return
+  channelStatusLoading.value = true
+  try {
+    const res = await telegramConfigApi.getChannelStatus({ channel: target })
+    if (res.code === 200) {
+      channelStatusMap[channel] = res.data || null
+      return
+    }
+    ElMessage.error(res.message || '加载频道权限失败')
+  } catch (error) {
+    console.error('加载频道权限失败:', error)
+    ElMessage.error(error.response?.data?.detail || '加载频道权限失败')
+  } finally {
+    channelStatusLoading.value = false
+  }
+}
+
+const loadAllChannelStatus = async () => {
+  for (const channel of form.telegramChannels) {
+    await loadChannelStatus(channel)
+  }
+}
+
+const refreshRuntimeStatus = async () => {
+  await Promise.all([
+    loadSessionStatus(),
+    loadBotStatus()
+  ])
+  await loadAllChannelStatus()
+}
+
+const actorStatusType = (actor) => {
+  if (!actor?.configured || !actor?.accessible) return 'danger'
+  if (actor.canPostMessages) return 'success'
+  return 'warning'
+}
+
+const actorStatusText = (actor) => {
+  if (!actor?.configured) return '未配置'
+  if (!actor?.accessible) return '不可访问'
+  if (actor.canPostMessages) return '可发帖'
+  return '无发帖权限'
+}
+
 const addMonitorChannel = () => {
   const channel = newMonitorChannel.value.trim()
   if (!channel) return
@@ -171,25 +266,47 @@ const addMonitorChannel = () => {
   newMonitorChannel.value = ''
 }
 
-const addPublishChannel = () => {
-  const channel = newPublishChannel.value.trim()
+const addPublishChannel = async () => {
+  const channel = normalizeTelegramTarget(newPublishChannel.value)
   if (!channel) return
   if (form.telegramChannels.includes(channel)) {
-    ElMessage.warning('发布频道已存在')
+    ElMessage.warning('发布目标已存在')
     return
   }
   form.telegramChannels.push(channel)
   publishChannelMeta[channel] = {
     title: '',
-    channelId: channel.startsWith('-100') ? channel : '',
-    username: channel.startsWith('@') ? channel : ''
+    channelId: channel.startsWith('-') ? channel : '',
+    username: channel.startsWith('@') ? channel : '',
+    targetType: ''
   }
   newPublishChannel.value = ''
+  const saved = await saveConfig()
+  if (!saved) {
+    form.telegramChannels = form.telegramChannels.filter((item) => item !== channel)
+    delete publishChannelMeta[channel]
+  }
 }
 
-const removePublishChannel = (channel) => {
+const removePublishChannel = async (channel) => {
+  const previousChannels = [...form.telegramChannels]
+  const previousMeta = { ...publishChannelMeta }
+  const previousStatus = { ...channelStatusMap }
   form.telegramChannels = form.telegramChannels.filter((item) => item !== channel)
   delete publishChannelMeta[channel]
+  delete channelStatusMap[channel]
+  const saved = await saveConfig()
+  if (!saved) {
+    form.telegramChannels = previousChannels
+    Object.keys(publishChannelMeta).forEach((key) => {
+      delete publishChannelMeta[key]
+    })
+    Object.assign(publishChannelMeta, previousMeta)
+    Object.keys(channelStatusMap).forEach((key) => {
+      delete channelStatusMap[key]
+    })
+    Object.assign(channelStatusMap, previousStatus)
+  }
 }
 
 const resolvePublishChannel = async (channel) => {
@@ -212,8 +329,12 @@ const resolvePublishChannel = async (channel) => {
     publishChannelMeta[channel] = {
       title: res.data?.title || '',
       channelId,
-      username: res.data?.username || ''
+      username: res.data?.username || '',
+      targetType: res.data?.targetType || ''
     }
+    const saved = await saveConfig()
+    if (!saved) return
+    await loadChannelStatus(channel)
     ElMessage.success(`已解析为 ${channelId}`)
   } catch (error) {
     console.error('频道解析失败:', error)
@@ -245,23 +366,6 @@ const buildPayload = () => ({
   monitorPollInterval: Number(form.monitorPollInterval)
 })
 
-const preservePublishChannelMeta = (channels) => {
-  const previousMeta = { ...publishChannelMeta }
-  Object.keys(publishChannelMeta).forEach((key) => {
-    delete publishChannelMeta[key]
-  })
-  form.telegramChannels = normalizeChannels(channels)
-  form.telegramChannels.forEach((channel) => {
-    const previousEntry = Object.values(previousMeta).find((meta) => meta.channelId === channel)
-    const meta = previousMeta[channel] || previousEntry || {}
-    publishChannelMeta[channel] = {
-      title: meta.title || '',
-      channelId: meta.channelId || (channel.startsWith('-100') ? channel : ''),
-      username: meta.username || (channel.startsWith('@') ? channel : '')
-    }
-  })
-}
-
 const saveConfig = async () => {
   let valid = false
   try {
@@ -282,8 +386,11 @@ const saveConfig = async () => {
       return false
     }
 
-    preservePublishChannelMeta(payload.telegramChannels)
-    form.monitorChannels = payload.monitorChannels
+    await loadConfig()
+    await Promise.all([
+      loadSessionStatus(),
+      loadBotStatus()
+    ])
     ElMessage.success('配置已保存，运行中组件将自动重新加载')
 
     const warnings = res.data?.warnings || []
@@ -382,6 +489,7 @@ const verifySession = async () => {
 onMounted(() => {
   loadConfig()
   loadSessionStatus()
+  loadBotStatus()
 })
 </script>
 
@@ -390,7 +498,7 @@ onMounted(() => {
     <div class="page-header">
       <div>
         <h2 class="page-title">Telegram 系统配置</h2>
-        <p class="page-desc">管理投稿 BOT、发布目标频道或群组、频道监控参数。</p>
+        <p class="page-desc">管理投稿 BOT、发布目标、频道监控参数。</p>
       </div>
       <el-button type="primary" :loading="saving" @click="saveConfig">保存配置</el-button>
     </div>
@@ -405,7 +513,15 @@ onMounted(() => {
     >
       <el-card class="config-card">
         <template #header>
-          <span>BOT 配置</span>
+          <div class="card-header">
+            <span>BOT 配置</span>
+            <el-button
+              :loading="botStatusLoading || sessionLoading || channelStatusLoading"
+              @click="refreshRuntimeStatus"
+            >
+              刷新权限状态
+            </el-button>
+          </div>
         </template>
 
         <el-form-item label="BOT Token">
@@ -436,6 +552,21 @@ onMounted(() => {
             placeholder="/tmp/submission_uploads"
           />
         </el-form-item>
+
+        <el-descriptions :column="1" border class="runtime-status">
+          <el-descriptions-item label="BOT Token 状态">
+            <el-tag :type="botStatus?.reachable ? 'success' : 'danger'">
+              {{ botStatus?.reachable ? '有效' : '不可用' }}
+            </el-tag>
+            <span v-if="botStatus?.error" class="status-error">{{ botStatus.error }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="BOT 账号">
+            <span v-if="botStatus?.reachable">
+              @{{ botStatus.username || '-' }} / ID {{ botStatus.id || '-' }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+        </el-descriptions>
       </el-card>
 
       <el-card class="config-card">
@@ -494,14 +625,14 @@ onMounted(() => {
 
       <el-card class="config-card">
         <template #header>
-          <span>发布配置</span>
+          <span>发布目标配置</span>
         </template>
 
-        <el-form-item label="新增发布频道">
+        <el-form-item label="新增发布目标">
           <div class="channel-input">
             <el-input
               v-model="newPublishChannel"
-              placeholder="支持 @channel、https://t.me/channel、-100... 或群组 ID"
+              placeholder="支持 @channel、@group、-100...、普通群组 ID"
               @keyup.enter="addPublishChannel"
             />
             <el-button type="primary" @click="addPublishChannel">
@@ -512,14 +643,19 @@ onMounted(() => {
         </el-form-item>
 
         <el-table v-if="publishChannelRows.length > 0" :data="publishChannelRows" border>
-          <el-table-column prop="title" label="频道名称" min-width="160">
+          <el-table-column prop="title" label="目标名称" min-width="160">
             <template #default="{ row }">
               {{ row.title || '-' }}
             </template>
           </el-table-column>
-          <el-table-column prop="channelId" label="频道ID" min-width="170">
+          <el-table-column prop="channelId" label="Chat ID" min-width="170">
             <template #default="{ row }">
               {{ row.channelId || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="targetType" label="类型" width="110">
+            <template #default="{ row }">
+              {{ row.targetType || row.status?.targetType || '-' }}
             </template>
           </el-table-column>
           <el-table-column prop="username" label="Username" min-width="150">
@@ -527,8 +663,40 @@ onMounted(() => {
               {{ row.username || '-' }}
             </template>
           </el-table-column>
+          <el-table-column label="BOT 权限" width="130">
+            <template #default="{ row }">
+              <el-tooltip
+                v-if="row.status?.bot?.error"
+                :content="row.status.bot.error"
+                placement="top"
+              >
+                <el-tag :type="actorStatusType(row.status.bot)">
+                  {{ actorStatusText(row.status.bot) }}
+                </el-tag>
+              </el-tooltip>
+              <el-tag v-else :type="actorStatusType(row.status?.bot)">
+                {{ actorStatusText(row.status?.bot) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="用户号权限" width="130">
+            <template #default="{ row }">
+              <el-tooltip
+                v-if="row.status?.userSession?.error"
+                :content="row.status.userSession.error"
+                placement="top"
+              >
+                <el-tag :type="actorStatusType(row.status.userSession)">
+                  {{ actorStatusText(row.status.userSession) }}
+                </el-tag>
+              </el-tooltip>
+              <el-tag v-else :type="actorStatusType(row.status?.userSession)">
+                {{ actorStatusText(row.status?.userSession) }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="channel" label="原始输入" min-width="180" />
-          <el-table-column label="操作" width="190" fixed="right">
+          <el-table-column label="操作" width="260" fixed="right">
             <template #default="{ row }">
               <el-button
                 link
@@ -538,13 +706,21 @@ onMounted(() => {
               >
                 解析ID
               </el-button>
+              <el-button
+                link
+                type="primary"
+                :loading="channelStatusLoading"
+                @click="loadChannelStatus(row.channel)"
+              >
+                检查权限
+              </el-button>
               <el-button link type="danger" @click="removePublishChannel(row.channel)">
                 删除
               </el-button>
             </template>
           </el-table-column>
         </el-table>
-        <el-empty v-else description="暂未配置发布频道" :image-size="60" />
+        <el-empty v-else description="暂未配置发布目标" :image-size="60" />
       </el-card>
 
       <el-card class="config-card">
@@ -616,7 +792,7 @@ onMounted(() => {
 }
 
 .config-form {
-  max-width: 980px;
+  width: 100%;
 }
 
 .config-card {
@@ -637,6 +813,16 @@ onMounted(() => {
 
 .session-status {
   margin-bottom: 16px;
+}
+
+.runtime-status {
+  margin-top: 8px;
+}
+
+.status-error {
+  margin-left: 10px;
+  color: #f56c6c;
+  font-size: 12px;
 }
 
 .session-actions {

@@ -77,10 +77,12 @@
       v-model:use-emoji-prefix="useEmojiPrefix"
       v-model:selected-region-tag="selectedRegionTag"
       v-model:selected-type-tag="selectedTypeTag"
+      v-model:selected-target-channels="selectedTargetChannels"
       :loading="loadingTemplates"
       :templates="templates"
       :region-tags="publishRegionTags"
       :type-tags="publishTypeTags"
+      :channel-options="publishChannelOptions"
       :publishing="publishingId === 'batch' || publishingId === currentPublishArticle?.id"
       :preview-loading="publishPreviewLoading"
       :preview-message="publishPreviewMessage"
@@ -95,7 +97,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPendingReviews, getApprovedArticles, getAllArticles, submitArticleWithFiles, getArticleDetail, publishArticle, messageTemplateApi, batchApi, previewApi, tagApi } from '@/services/api.js'
+import { getPendingReviews, getApprovedArticles, getAllArticles, submitArticleWithFiles, getArticleDetail, publishArticle, messageTemplateApi, batchApi, previewApi, tagApi, telegramConfigApi } from '@/services/api.js'
 import ArticleManageSearch from '@/components/admin/article-manage/ArticleManageSearch.vue'
 import ArticleManageTable from '@/components/admin/article-manage/ArticleManageTable.vue'
 import QuickSubmitDialog from '@/components/admin/article-manage/QuickSubmitDialog.vue'
@@ -465,8 +467,29 @@ const publishPreviewMessage = ref('')
 const publishPreviewButtons = ref([])
 const publishRegionTags = ref([])
 const publishTypeTags = ref([])
+const publishChannelOptions = ref([])
+const selectedTargetChannels = ref([])
 const selectedRegionTag = ref(null)
 const selectedTypeTag = ref(null)
+
+const buildChannelOptions = (data) => {
+  const detailsById = {}
+  ;(data.telegramChannelDetails || []).forEach((detail) => {
+    if (detail.channelId) detailsById[detail.channelId] = detail
+    if (detail.input) detailsById[detail.input] = detail
+  })
+  return (data.telegramChannels || [])
+    .filter(Boolean)
+    .map((channel) => {
+      const detail = detailsById[channel] || {}
+      const title = detail.title || detail.username || channel
+      const type = detail.targetType ? ` / ${detail.targetType}` : ''
+      return {
+        value: channel,
+        label: `${title}${type} / ${channel}`
+      }
+    })
+}
 
 const resetPublishDialogState = () => {
   useTemplate.value = false
@@ -474,6 +497,7 @@ const resetPublishDialogState = () => {
   useEmojiPrefix.value = true
   selectedRegionTag.value = null
   selectedTypeTag.value = null
+  selectedTargetChannels.value = publishChannelOptions.value.map(channel => channel.value)
   publishPreviewMessage.value = ''
   publishPreviewButtons.value = []
 }
@@ -481,10 +505,11 @@ const resetPublishDialogState = () => {
 const loadPublishOptions = async () => {
   loadingTemplates.value = true
   try {
-    const [templateRes, regionRes, typeRes] = await Promise.all([
+    const [templateRes, regionRes, typeRes, telegramRes] = await Promise.all([
       messageTemplateApi.getList(),
       tagApi.getRegions(),
-      tagApi.getTypes()
+      tagApi.getTypes(),
+      telegramConfigApi.get()
     ])
     if (templateRes.code === 200) {
       templates.value = templateRes.data || []
@@ -494,6 +519,10 @@ const loadPublishOptions = async () => {
     }
     if (typeRes.code === 200) {
       publishTypeTags.value = typeRes.data || []
+    }
+    if (telegramRes.code === 200) {
+      publishChannelOptions.value = buildChannelOptions(telegramRes.data || {})
+      selectedTargetChannels.value = publishChannelOptions.value.map(channel => channel.value)
     }
   } catch (error) {
     console.error('加载发布配置失败:', error)
@@ -520,7 +549,8 @@ const buildPublishPayload = () => ({
   templateId: useTemplate.value ? selectedTemplateId.value : null,
   useEmoji: useEmojiPrefix.value,
   regionTag: selectedRegionTag.value,
-  typeTag: selectedTypeTag.value
+  typeTag: selectedTypeTag.value,
+  targetChannels: selectedTargetChannels.value
 })
 
 const generatePublishPreview = async () => {
@@ -558,12 +588,13 @@ const confirmPublishWithTemplate = async () => {
           payload.templateId,
           payload.useEmoji,
           payload.regionTag,
-          payload.typeTag
+          payload.typeTag,
+          payload.targetChannels
         )
       : await publishArticle(currentPublishArticle.value.id, payload)
 
     if (res.code === 200) {
-      ElMessage.success(isBatchPublishing.value ? res.message || '批量发布完成' : '发布成功')
+      ElMessage.success(isBatchPublishing.value ? res.message || '批量发布完成' : res.message || '发布成功')
       clearSelection()
       fetchArticles()
     } else {

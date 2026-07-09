@@ -105,6 +105,11 @@ const routes = [
         component: () => import('../views/admin/TelegramConfigView.vue')
       },
       {
+        path: 'ai-config',
+        name: 'AdminAiConfig',
+        component: () => import('../views/admin/AiConfigView.vue')
+      },
+      {
         path: 'ads',
         name: 'AdminAds',
         component: () => import('../views/admin/AdTemplateView.vue')

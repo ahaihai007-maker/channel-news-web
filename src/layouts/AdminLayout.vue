@@ -113,6 +113,12 @@ const menuSections = [
         label: 'AI 管线处理',
         icon: markRaw(MagicStick),
         activePaths: ['/admin/pipeline']
+      },
+      {
+        index: '/admin/ai-config',
+        label: 'AI 设置',
+        icon: markRaw(Setting),
+        activePaths: ['/admin/ai-config']
       }
     ]
   },

@@ -92,9 +92,24 @@ export const telegramConfigApi = {
   get: () => request.get('/admin/telegram-config'),
   update: (data) => request.put('/admin/telegram-config', data),
   resolveChannel: (data) => request.post('/admin/telegram-config/resolve-channel', data),
+  getBotStatus: () => request.get('/admin/telegram-bot/status'),
+  getChannelStatus: (data) => request.post('/admin/telegram-channel/status', data),
   getSessionStatus: () => request.get('/admin/telegram-session/status'),
   sendSessionCode: () => request.post('/admin/telegram-session/send-code'),
   verifySession: (data) => request.post('/admin/telegram-session/verify', data)
+}
+
+export const aiConfigApi = {
+  get: () => request.get('/admin/ai-config'),
+  update: (data) => request.put('/admin/ai-config', data)
+}
+
+export const aiPromptApi = {
+  getList: () => request.get('/admin/ai-prompts'),
+  create: (data) => request.post('/admin/ai-prompts', data),
+  update: (id, data) => request.put(`/admin/ai-prompts/${id}`, data),
+  reset: (id) => request.post(`/admin/ai-prompts/${id}/reset`),
+  updateStatus: (id, isActive) => request.patch(`/admin/ai-prompts/${id}/status`, { isActive })
 }
 
 // AI润色接口
@@ -139,8 +154,16 @@ export const batchApi = {
   reject: (articleIds, reason) => request.post('/admin/batch/reject', { articleIds, reason }),
   
   // 批量发布
-  publish: (articleIds, useTemplate, templateId, useEmoji, regionTag, typeTag) => 
-    request.post('/admin/batch/publish', { articleIds, useTemplate, templateId, useEmoji, regionTag, typeTag }),
+  publish: (articleIds, useTemplate, templateId, useEmoji, regionTag, typeTag, targetChannels = []) =>
+    request.post('/admin/batch/publish', {
+      articleIds,
+      useTemplate,
+      templateId,
+      useEmoji,
+      regionTag,
+      typeTag,
+      targetChannels
+    }),
   
   // 批量删除
   delete: (articleIds) => request.post('/admin/batch/delete', { articleIds })
