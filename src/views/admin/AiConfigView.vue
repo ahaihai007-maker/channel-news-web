@@ -50,6 +50,55 @@
       </el-form>
     </el-card>
 
+    <el-card class="config-card usage-card">
+      <template #header>
+        <div class="card-header">
+          <div>
+            <span>AI 用量统计</span>
+            <span class="sub-title">按 Asia/Singapore 日期统计已记录的 AI API token</span>
+          </div>
+          <el-button :loading="usageLoading" @click="loadUsage">
+            刷新
+          </el-button>
+        </div>
+      </template>
+
+      <el-row :gutter="16" class="usage-grid">
+        <el-col :xs="24" :sm="12" :lg="6">
+          <div class="usage-metric">
+            <span class="usage-label">今日 Token</span>
+            <strong>{{ formatNumber(usage.todayTotalTokens) }}</strong>
+            <small>
+              输入 {{ formatNumber(usage.todayPromptTokens) }} / 输出 {{ formatNumber(usage.todayCompletionTokens) }}
+            </small>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :lg="6">
+          <div class="usage-metric">
+            <span class="usage-label">今日调用</span>
+            <strong>{{ formatNumber(usage.todayCalls) }}</strong>
+            <small>成功调用次数</small>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :lg="6">
+          <div class="usage-metric">
+            <span class="usage-label">本月 Token</span>
+            <strong>{{ formatNumber(usage.monthTotalTokens) }}</strong>
+            <small>
+              输入 {{ formatNumber(usage.monthPromptTokens) }} / 输出 {{ formatNumber(usage.monthCompletionTokens) }}
+            </small>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :lg="6">
+          <div class="usage-metric">
+            <span class="usage-label">本月调用</span>
+            <strong>{{ formatNumber(usage.monthCalls) }}</strong>
+            <small>成功调用次数</small>
+          </div>
+        </el-col>
+      </el-row>
+    </el-card>
+
     <el-card class="config-card prompt-card">
       <template #header>
         <div class="card-header">
@@ -163,7 +212,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { aiConfigApi, aiPromptApi } from '../../services/api.js'
+import { aiConfigApi, aiPromptApi, aiUsageApi } from '../../services/api.js'
 
 const formRef = ref(null)
 const loading = ref(false)
@@ -172,6 +221,17 @@ const form = reactive({
   openrouterApiKey: '',
   openrouterModel: '',
   configured: false
+})
+const usageLoading = ref(false)
+const usage = reactive({
+  todayPromptTokens: 0,
+  todayCompletionTokens: 0,
+  todayTotalTokens: 0,
+  todayCalls: 0,
+  monthPromptTokens: 0,
+  monthCompletionTokens: 0,
+  monthTotalTokens: 0,
+  monthCalls: 0
 })
 
 const rules = {
@@ -221,6 +281,36 @@ const promptRules = {
 
 const formatVariable = (inputVariable) => {
   return `{${inputVariable}}`
+}
+
+const formatNumber = (value) => {
+  return Number(value || 0).toLocaleString('en-US')
+}
+
+const loadUsage = async () => {
+  usageLoading.value = true
+  try {
+    const res = await aiUsageApi.getSummary()
+    if (res.code === 200) {
+      Object.assign(usage, {
+        todayPromptTokens: res.data?.todayPromptTokens || 0,
+        todayCompletionTokens: res.data?.todayCompletionTokens || 0,
+        todayTotalTokens: res.data?.todayTotalTokens || 0,
+        todayCalls: res.data?.todayCalls || 0,
+        monthPromptTokens: res.data?.monthPromptTokens || 0,
+        monthCompletionTokens: res.data?.monthCompletionTokens || 0,
+        monthTotalTokens: res.data?.monthTotalTokens || 0,
+        monthCalls: res.data?.monthCalls || 0
+      })
+      return
+    }
+    ElMessage.error(res.message || '加载 AI 用量统计失败')
+  } catch (error) {
+    console.error('加载 AI 用量统计失败:', error)
+    ElMessage.error('加载 AI 用量统计失败')
+  } finally {
+    usageLoading.value = false
+  }
 }
 
 const loadConfig = async () => {
@@ -370,6 +460,7 @@ const togglePromptStatus = async (prompt) => {
 
 onMounted(() => {
   loadConfig()
+  loadUsage()
   loadPrompts()
 })
 </script>
@@ -394,6 +485,10 @@ onMounted(() => {
   margin-top: 20px;
 }
 
+.usage-card {
+  margin-top: 20px;
+}
+
 .card-header {
   display: flex;
   align-items: center;
@@ -410,5 +505,41 @@ onMounted(() => {
 
 .config-form {
   max-width: 720px;
+}
+
+.usage-grid {
+  row-gap: 16px;
+}
+
+.usage-metric {
+  min-height: 116px;
+  padding: 18px;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.usage-label {
+  display: block;
+  margin-bottom: 10px;
+  color: #606266;
+  font-size: 13px;
+}
+
+.usage-metric strong {
+  display: block;
+  color: #1f2937;
+  font-size: 28px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.usage-metric small {
+  display: block;
+  margin-top: 8px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.45;
 }
 </style>

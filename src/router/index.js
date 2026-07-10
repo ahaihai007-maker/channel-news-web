@@ -120,6 +120,11 @@ const routes = [
         component: () => import('../views/admin/PipelineView.vue')
       },
       {
+        path: 'article-publish-plans',
+        name: 'AdminArticlePublishPlans',
+        component: () => import('../views/admin/ArticlePublishPlanView.vue')
+      },
+      {
         path: 'payment',
         name: 'AdminPayment',
         component: () => import('../views/admin/PaymentView.vue')

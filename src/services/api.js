@@ -104,6 +104,10 @@ export const aiConfigApi = {
   update: (data) => request.put('/admin/ai-config', data)
 }
 
+export const aiUsageApi = {
+  getSummary: (params) => request.get('/admin/ai-usage/summary', { params })
+}
+
 export const aiPromptApi = {
   getList: () => request.get('/admin/ai-prompts'),
   create: (data) => request.post('/admin/ai-prompts', data),
@@ -215,4 +219,13 @@ export const pipelineApi = {
   preview: (articleId, pipeline) => request.post('/admin/pipeline/preview', { articleId, pipeline }),
   process: (articleId, pipeline, data = {}) => request.post('/admin/pipeline/process', { articleId, pipeline, ...data }),
   batchProcess: (articleIds, pipeline) => request.post('/admin/pipeline/batch-process', { articleIds, pipeline }),
+}
+
+export const articlePublishPlanApi = {
+  getList: (params) => request.get('/admin/article-publish-plans', { params }),
+  create: (data) => request.post('/admin/article-publish-plans', data),
+  update: (id, data) => request.put(`/admin/article-publish-plans/${id}`, data),
+  delete: (id) => request.delete(`/admin/article-publish-plans/${id}`),
+  runNow: (id) => request.post(`/admin/article-publish-plans/${id}/run-now`),
+  getRuns: (id, params) => request.get(`/admin/article-publish-plans/${id}/runs`, { params })
 }

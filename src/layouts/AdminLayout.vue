@@ -115,6 +115,12 @@ const menuSections = [
         activePaths: ['/admin/pipeline']
       },
       {
+        index: '/admin/article-publish-plans',
+        label: '发文计划',
+        icon: markRaw(MagicStick),
+        activePaths: ['/admin/article-publish-plans']
+      },
+      {
         index: '/admin/ai-config',
         label: 'AI 设置',
         icon: markRaw(Setting),
