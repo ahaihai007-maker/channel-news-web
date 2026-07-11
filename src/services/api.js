@@ -104,6 +104,13 @@ export const aiConfigApi = {
   update: (data) => request.put('/admin/ai-config', data)
 }
 
+export const interactionAiApi = {
+  getList: () => request.get('/admin/interaction-ai'),
+  create: (data) => request.post('/admin/interaction-ai', data),
+  update: (id, data) => request.put(`/admin/interaction-ai/${id}`, data),
+  delete: (id) => request.delete(`/admin/interaction-ai/${id}`)
+}
+
 export const aiUsageApi = {
   getSummary: (params) => request.get('/admin/ai-usage/summary', { params })
 }

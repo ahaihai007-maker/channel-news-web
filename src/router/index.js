@@ -110,6 +110,11 @@ const routes = [
         component: () => import('../views/admin/AiConfigView.vue')
       },
       {
+        path: 'interaction-ai',
+        name: 'AdminInteractionAi',
+        component: () => import('../views/admin/InteractionAiView.vue')
+      },
+      {
         path: 'ads',
         name: 'AdminAds',
         component: () => import('../views/admin/AdTemplateView.vue')

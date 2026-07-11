@@ -51,6 +51,7 @@ import { useRoute } from 'vue-router'
 import NavHeader from '../components/common/NavHeader.vue'
 import {
   Bell,
+  ChatDotRound,
   Connection,
   Document,
   MagicStick,
@@ -125,6 +126,12 @@ const menuSections = [
         label: 'AI 设置',
         icon: markRaw(Setting),
         activePaths: ['/admin/ai-config']
+      },
+      {
+        index: '/admin/interaction-ai',
+        label: '互动 AI',
+        icon: markRaw(ChatDotRound),
+        activePaths: ['/admin/interaction-ai']
       }
     ]
   },
