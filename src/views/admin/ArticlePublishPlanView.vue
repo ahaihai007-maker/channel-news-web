@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">发文计划</h2>
-        <p class="page-subtitle">配置抓取稿的自动处理、模板装配与 Telegram 发布。</p>
+        <p class="page-subtitle">配置来源采集、AI 处理、模板装配与 Telegram 发布。</p>
       </div>
       <div class="head-actions">
         <el-button :icon="Refresh" @click="loadAll">刷新</el-button>
@@ -14,6 +14,9 @@
     <el-card class="panel" shadow="never">
       <el-table v-loading="loading" :data="plans" stripe>
         <el-table-column prop="name" label="名称" min-width="160" />
+        <el-table-column label="计划类型" width="150">
+          <template #default="{ row }">{{ planTypeName(row.planType) }}</template>
+        </el-table-column>
         <el-table-column label="启用" width="80">
           <template #default="{ row }">{{ row.enabled ? '是' : '否' }}</template>
         </el-table-column>
@@ -34,7 +37,15 @@
           <template #default="{ row }">{{ formatDateTime(row.nextRunAt) }}</template>
         </el-table-column>
         <el-table-column prop="lastStatus" label="上次状态" width="110" />
-        <el-table-column prop="lastError" label="错误" min-width="160" show-overflow-tooltip />
+        <el-table-column label="采集状态" width="110">
+          <template #default="{ row }">{{ row.planType === 'BILIBILI_AUTHOR_COMMENT' ? (row.lastCollectStatus || '-') : '-' }}</template>
+        </el-table-column>
+        <el-table-column label="下次采集" width="180">
+          <template #default="{ row }">{{ row.planType === 'BILIBILI_AUTHOR_COMMENT' ? formatDateTime(row.nextCollectAt) : '-' }}</template>
+        </el-table-column>
+        <el-table-column label="错误" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.lastCollectError || row.lastError || '-' }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
@@ -61,11 +72,49 @@
           </el-col>
         </el-row>
 
-        <el-form-item label="来源频道">
+        <el-form-item label="计划类型">
+          <el-radio-group v-model="form.planType" @change="onPlanTypeChange">
+            <el-radio-button value="ARTICLE_DRAFT">频道文章</el-radio-button>
+            <el-radio-button value="BILIBILI_AUTHOR_COMMENT">Bilibili 作者留言</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item v-if="form.planType === 'ARTICLE_DRAFT'" label="来源频道">
           <el-select v-model="form.sourceChannels" multiple clearable filterable placeholder="不选则处理全部抓取稿" style="width: 100%;">
             <el-option v-for="channel in sourceChannelOptions" :key="channel" :label="channel" :value="channel" />
           </el-select>
         </el-form-item>
+
+        <template v-if="form.planType === 'BILIBILI_AUTHOR_COMMENT'">
+          <el-divider content-position="left">Bilibili 来源</el-divider>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="空间 MID" prop="bilibiliSpaceMid">
+                <el-input v-model="form.bilibiliSpaceMid" maxlength="32" placeholder="3546606469123022" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="开始采集时间">
+                <el-time-picker v-model="form.bilibiliCollectTimeOfDay" format="HH:mm" value-format="HH:mm" style="width: 100%;" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="轮询间隔">
+                <el-input-number v-model="form.bilibiliPollIntervalMinutes" :min="1" :max="1440" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="留言稳定时间">
+                <el-input-number v-model="form.bilibiliCommentSettleMinutes" :min="1" :max="60" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="完成标记">
+            <el-input v-model="form.bilibiliCompletionMarker" maxlength="100" />
+          </el-form-item>
+        </template>
 
         <el-row :gutter="16">
           <el-col :span="12">
@@ -129,7 +178,7 @@
           <el-switch v-model="form.autoPublish" active-text="处理后发布" inactive-text="处理后待审" />
         </el-form-item>
 
-        <el-form-item label="新文章触发">
+        <el-form-item v-if="form.planType === 'ARTICLE_DRAFT'" label="新文章触发">
           <el-switch
             v-model="form.triggerOnNewArticle"
             active-text="抓取入库后触发"
@@ -243,6 +292,7 @@ const defaultForm = () => ({
   id: null,
   name: '',
   enabled: true,
+  planType: 'ARTICLE_DRAFT',
   sourceChannels: [],
   promptKey: '',
   templateId: null,
@@ -258,7 +308,12 @@ const defaultForm = () => ({
   intervalMinutes: 60,
   maxArticlesPerRun: 1,
   autoPublish: false,
-  triggerOnNewArticle: false
+  triggerOnNewArticle: false,
+  bilibiliSpaceMid: '',
+  bilibiliCollectTimeOfDay: '22:30',
+  bilibiliPollIntervalMinutes: 10,
+  bilibiliCommentSettleMinutes: 5,
+  bilibiliCompletionMarker: '今天分享到此结束'
 })
 
 const form = reactive(defaultForm())
@@ -342,6 +397,14 @@ const openCreateDialog = () => {
   dialogVisible.value = true
 }
 
+const onPlanTypeChange = (planType) => {
+  if (planType !== 'BILIBILI_AUTHOR_COMMENT') return
+  form.scheduleType = 'DAILY'
+  form.timeOfDay = '09:00'
+  form.maxArticlesPerRun = 1
+  form.triggerOnNewArticle = false
+}
+
 const openEditDialog = (row) => {
   Object.assign(form, {
     ...defaultForm(),
@@ -358,6 +421,7 @@ const openEditDialog = (row) => {
 const buildPayload = () => ({
   name: form.name.trim(),
   enabled: form.enabled,
+  planType: form.planType,
   sourceChannels: form.sourceChannels,
   promptKey: form.promptKey,
   templateId: form.useTemplate ? form.templateId : null,
@@ -373,12 +437,21 @@ const buildPayload = () => ({
   intervalMinutes: form.intervalMinutes,
   maxArticlesPerRun: form.maxArticlesPerRun,
   autoPublish: form.autoPublish,
-  triggerOnNewArticle: form.triggerOnNewArticle
+  triggerOnNewArticle: form.planType === 'ARTICLE_DRAFT' && form.triggerOnNewArticle,
+  bilibiliSpaceMid: form.planType === 'BILIBILI_AUTHOR_COMMENT' ? form.bilibiliSpaceMid.trim() : null,
+  bilibiliCollectTimeOfDay: form.bilibiliCollectTimeOfDay,
+  bilibiliPollIntervalMinutes: form.bilibiliPollIntervalMinutes,
+  bilibiliCommentSettleMinutes: form.bilibiliCommentSettleMinutes,
+  bilibiliCompletionMarker: form.bilibiliCompletionMarker
 })
 
 const savePlan = async () => {
   const valid = await formRef.value?.validate?.().catch(() => false)
   if (!valid) return
+  if (form.planType === 'BILIBILI_AUTHOR_COMMENT' && !/^\d+$/.test(form.bilibiliSpaceMid.trim())) {
+    ElMessage.error('请输入有效的 Bilibili 空间 MID')
+    return
+  }
 
   saving.value = true
   try {
@@ -403,7 +476,8 @@ const runNow = async (row) => {
   try {
     const res = await articlePublishPlanApi.runNow(row.id)
     if (res.code === 200) {
-      ElMessage.success(`执行完成，处理 ${res.data?.processed || 0} 篇`)
+      const collected = res.data?.collection?.collected || 0
+      ElMessage.success(`执行完成，采集 ${collected} 篇，处理 ${res.data?.processed || 0} 篇`)
       await loadPlans()
       return
     }
@@ -444,6 +518,7 @@ const loadRuns = async () => {
 }
 
 const promptName = (key) => pipelineOptions.value.find((prompt) => prompt.value === key)?.label || key
+const planTypeName = (type) => type === 'BILIBILI_AUTHOR_COMMENT' ? 'Bilibili 作者留言' : '频道文章'
 const templateName = (id) => {
   if (!id) return '-'
   return templates.value.find((template) => template.id === id)?.name || `#${id}`
