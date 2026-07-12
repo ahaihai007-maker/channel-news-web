@@ -93,6 +93,7 @@ export const telegramConfigApi = {
   update: (data) => request.put('/admin/telegram-config', data),
   resolveChannel: (data) => request.post('/admin/telegram-config/resolve-channel', data),
   getBotStatus: () => request.get('/admin/telegram-bot/status'),
+  getInteractionBotStatus: () => request.get('/admin/telegram-interaction-bot/status'),
   getChannelStatus: (data) => request.post('/admin/telegram-channel/status', data),
   getSessionStatus: () => request.get('/admin/telegram-session/status'),
   sendSessionCode: () => request.post('/admin/telegram-session/send-code'),

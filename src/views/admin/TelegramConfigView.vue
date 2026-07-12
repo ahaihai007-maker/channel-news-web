@@ -9,6 +9,7 @@ const loading = ref(false)
 const saving = ref(false)
 const sessionLoading = ref(false)
 const botStatusLoading = ref(false)
+const interactionBotStatusLoading = ref(false)
 const channelStatusLoading = ref(false)
 const sendingCode = ref(false)
 const verifyingSession = ref(false)
@@ -16,8 +17,10 @@ const resolvingPublishChannel = ref('')
 const newPublishChannel = ref('')
 const newMonitorChannel = ref('')
 const originalBotToken = ref('')
+const originalInteractionBotToken = ref('')
 const sessionStatus = ref(null)
 const botStatus = ref(null)
+const interactionBotStatus = ref(null)
 const publishChannelMeta = reactive({})
 const channelStatusMap = reactive({})
 const sessionForm = reactive({
@@ -28,6 +31,7 @@ const sessionForm = reactive({
 
 const form = reactive({
   telegramBotToken: '',
+  telegramInteractionBotToken: '',
   telegramChannels: [],
   telegramApiId: 0,
   telegramApiHash: '',
@@ -40,6 +44,20 @@ const form = reactive({
 })
 
 const rules = {
+  telegramInteractionBotToken: [
+    {
+      validator: (_rule, value, callback) => {
+        const interactionToken = String(value || '').trim()
+        const primaryToken = String(form.telegramBotToken || '').trim()
+        if (!interactionToken || interactionToken !== primaryToken) {
+          callback()
+          return
+        }
+        callback(new Error('AI 群聊 BOT Token 必须与投稿/发布 BOT Token 不同'))
+      },
+      trigger: 'blur'
+    }
+  ],
   telegramApiId: [
     {
       validator: (_rule, value, callback) => {
@@ -123,6 +141,7 @@ const normalizeTelegramTarget = (value) => {
 
 const assignForm = (data) => {
   form.telegramBotToken = data.telegramBotToken || ''
+  form.telegramInteractionBotToken = data.telegramInteractionBotToken || ''
   form.telegramChannels = normalizeChannels(data.telegramChannels || (data.telegramChannel ? [data.telegramChannel] : []))
   Object.keys(publishChannelMeta).forEach((key) => {
     delete publishChannelMeta[key]
@@ -151,6 +170,7 @@ const assignForm = (data) => {
   form.monitorChannels = normalizeChannels(data.monitorChannels || [])
   form.monitorPollInterval = data.monitorPollInterval || 60
   originalBotToken.value = form.telegramBotToken
+  originalInteractionBotToken.value = form.telegramInteractionBotToken
 }
 
 const loadConfig = async () => {
@@ -205,6 +225,23 @@ const loadBotStatus = async () => {
   }
 }
 
+const loadInteractionBotStatus = async () => {
+  interactionBotStatusLoading.value = true
+  try {
+    const res = await telegramConfigApi.getInteractionBotStatus()
+    if (res.code === 200) {
+      interactionBotStatus.value = res.data || null
+      return
+    }
+    ElMessage.error(res.message || '加载 AI 群聊 BOT 状态失败')
+  } catch (error) {
+    console.error('加载 AI 群聊 BOT 状态失败:', error)
+    ElMessage.error('加载 AI 群聊 BOT 状态失败')
+  } finally {
+    interactionBotStatusLoading.value = false
+  }
+}
+
 const getStatusTarget = (channel) => (
   publishChannelMeta[channel]?.channelId || channel
 )
@@ -237,7 +274,8 @@ const loadAllChannelStatus = async () => {
 const refreshRuntimeStatus = async () => {
   await Promise.all([
     loadSessionStatus(),
-    loadBotStatus()
+    loadBotStatus(),
+    loadInteractionBotStatus()
   ])
   await loadAllChannelStatus()
 }
@@ -350,6 +388,7 @@ const removeMonitorChannel = (channel) => {
 
 const buildPayload = () => ({
   telegramBotToken: form.telegramBotToken.trim(),
+  telegramInteractionBotToken: form.telegramInteractionBotToken.trim(),
   telegramChannel: normalizeChannels(form.telegramChannels.map((channel) => (
     publishChannelMeta[channel]?.channelId || channel
   ))).join(','),
@@ -378,6 +417,9 @@ const saveConfig = async () => {
   saving.value = true
   const payload = buildPayload()
   const botTokenChanged = payload.telegramBotToken !== originalBotToken.value
+  const interactionBotTokenChanged = (
+    payload.telegramInteractionBotToken !== originalInteractionBotToken.value
+  )
 
   try {
     const res = await telegramConfigApi.update(payload)
@@ -389,16 +431,18 @@ const saveConfig = async () => {
     await loadConfig()
     await Promise.all([
       loadSessionStatus(),
-      loadBotStatus()
+      loadBotStatus(),
+      loadInteractionBotStatus()
     ])
     ElMessage.success('配置已保存，运行中组件将自动重新加载')
 
     const warnings = res.data?.warnings || []
-    if (warnings.length > 0 || botTokenChanged) {
+    if (warnings.length > 0 || botTokenChanged || interactionBotTokenChanged) {
       ElNotification({
         title: '配置状态',
         message: [
           botTokenChanged ? '投稿 bot 正在进程内重建，短时间内可能暂停接收消息。' : '',
+          interactionBotTokenChanged ? 'AI 群聊 bot 正在独立进程内重建。' : '',
           ...warnings
         ].filter(Boolean).join('\n'),
         type: warnings.length > 0 ? 'warning' : 'success',
@@ -490,6 +534,7 @@ onMounted(() => {
   loadConfig()
   loadSessionStatus()
   loadBotStatus()
+  loadInteractionBotStatus()
 })
 </script>
 
@@ -498,7 +543,7 @@ onMounted(() => {
     <div class="page-header">
       <div>
         <h2 class="page-title">Telegram 系统配置</h2>
-        <p class="page-desc">管理投稿 BOT、发布目标、频道监控参数。</p>
+        <p class="page-desc">管理投稿/发布 BOT、独立 AI 群聊 BOT、发布目标与频道监控参数。</p>
       </div>
       <el-button type="primary" :loading="saving" @click="saveConfig">保存配置</el-button>
     </div>
@@ -514,7 +559,7 @@ onMounted(() => {
       <el-card class="config-card">
         <template #header>
           <div class="card-header">
-            <span>BOT 配置</span>
+            <span>投稿/发布 BOT 配置</span>
             <el-button
               :loading="botStatusLoading || sessionLoading || channelStatusLoading"
               @click="refreshRuntimeStatus"
@@ -524,7 +569,7 @@ onMounted(() => {
           </div>
         </template>
 
-        <el-form-item label="BOT Token">
+        <el-form-item label="投稿/发布 Token">
           <el-input
             v-model="form.telegramBotToken"
             type="textarea"
@@ -565,6 +610,60 @@ onMounted(() => {
               @{{ botStatus.username || '-' }} / ID {{ botStatus.id || '-' }}
             </span>
             <span v-else>-</span>
+          </el-descriptions-item>
+        </el-descriptions>
+      </el-card>
+
+      <el-card class="config-card">
+        <template #header>
+          <div class="card-header">
+            <span>AI 群聊 BOT 配置</span>
+            <el-button
+              :loading="interactionBotStatusLoading"
+              @click="loadInteractionBotStatus"
+            >
+              刷新状态
+            </el-button>
+          </div>
+        </template>
+
+        <el-form-item label="AI 群聊 Token" prop="telegramInteractionBotToken">
+          <el-input
+            v-model="form.telegramInteractionBotToken"
+            type="textarea"
+            :rows="2"
+            placeholder="输入独立的 AI 群聊 Telegram BOT token"
+            show-word-limit
+          />
+        </el-form-item>
+        <el-alert
+          title="此 Token 必须与投稿/发布 BOT Token 不同；AI BOT 只处理已绑定群组中的互动消息。"
+          type="info"
+          :closable="false"
+          show-icon
+        />
+
+        <el-descriptions :column="1" border class="runtime-status">
+          <el-descriptions-item label="AI BOT Token 状态">
+            <el-tag :type="interactionBotStatus?.reachable ? 'success' : 'danger'">
+              {{ interactionBotStatus?.reachable ? '有效' : '不可用' }}
+            </el-tag>
+            <span v-if="interactionBotStatus?.error" class="status-error">
+              {{ interactionBotStatus.error }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="AI BOT 账号">
+            <span v-if="interactionBotStatus?.reachable">
+              @{{ interactionBotStatus.username || '-' }} / ID {{ interactionBotStatus.id || '-' }}
+            </span>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="读取群组消息">
+            <el-tag
+              :type="interactionBotStatus?.canReadAllGroupMessages ? 'success' : 'warning'"
+            >
+              {{ interactionBotStatus?.canReadAllGroupMessages ? '已启用' : '受 Privacy Mode 限制' }}
+            </el-tag>
           </el-descriptions-item>
         </el-descriptions>
       </el-card>
