@@ -53,6 +53,7 @@ defineEmits(['search', 'reset'])
 
       <el-form-item label="状态">
         <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 110px">
+          <el-option label="广告复核" value="AD_REVIEW" />
           <el-option label="待审核" value="PENDING" />
           <el-option label="已通过" value="APPROVED" />
           <el-option label="已发布" value="PUBLISHED" />

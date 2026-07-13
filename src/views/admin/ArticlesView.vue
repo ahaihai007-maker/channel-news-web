@@ -168,6 +168,7 @@ const handleSelectionChange = (selection) => {
 
 const getStatusType = (status) => {
   const map = {
+    'AD_REVIEW': 'warning',
     'PENDING': 'warning',
     'APPROVED': 'success',
     'PUBLISHING': 'info',
@@ -179,6 +180,7 @@ const getStatusType = (status) => {
 
 const getStatusText = (status) => {
   const map = {
+    'AD_REVIEW': '广告复核',
     'PENDING': '待审核',
     'APPROVED': '已通过',
     'PUBLISHING': '发布中',

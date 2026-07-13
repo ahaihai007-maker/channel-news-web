@@ -122,6 +122,12 @@ const menuSections = [
         activePaths: ['/admin/article-publish-plans']
       },
       {
+        index: '/admin/bilibili-config',
+        label: 'Bilibili 采集',
+        icon: markRaw(Connection),
+        activePaths: ['/admin/bilibili-config']
+      },
+      {
         index: '/admin/ai-config',
         label: 'AI 设置',
         icon: markRaw(Setting),

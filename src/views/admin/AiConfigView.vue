@@ -99,6 +99,38 @@
       </el-row>
     </el-card>
 
+    <el-card class="config-card auxiliary-prompt-card">
+      <template #header>
+        <div class="card-header">
+          <div>
+            <span>观点与提醒 Prompt</span>
+            <span class="sub-title">统一管理新闻观点评论及主 Prompt 附加内容使用的固定 Prompt</span>
+          </div>
+        </div>
+      </template>
+
+      <el-table :data="auxiliaryPrompts" v-loading="promptsLoading" row-key="id">
+        <el-table-column prop="name" label="名称" min-width="130" />
+        <el-table-column prop="promptKey" label="Key" min-width="170" />
+        <el-table-column prop="description" label="使用说明" min-width="300" show-overflow-tooltip />
+        <el-table-column prop="inputVariable" label="变量" width="100">
+          <template #default="scope">
+            <code>{{ formatVariable(scope.row.inputVariable) }}</code>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="190" fixed="right">
+          <template #default="scope">
+            <el-button size="small" type="primary" plain @click="openPromptDialog(scope.row)">
+              编辑
+            </el-button>
+            <el-button size="small" plain @click="resetPrompt(scope.row)">
+              恢复默认
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <el-card class="config-card prompt-card">
       <template #header>
         <div class="card-header">
@@ -112,7 +144,7 @@
         </div>
       </template>
 
-      <el-table :data="prompts" v-loading="promptsLoading" row-key="id">
+      <el-table :data="generationPrompts" v-loading="promptsLoading" row-key="id">
         <el-table-column prop="name" label="名称" min-width="130" />
         <el-table-column prop="promptKey" label="Key" min-width="150" />
         <el-table-column label="类型" width="90">
@@ -171,7 +203,7 @@
 
     <el-dialog
       v-model="promptDialogVisible"
-      :title="editingPrompt?.id ? '编辑 Prompt' : '新增 Prompt'"
+      :title="promptDialogTitle"
       width="760px"
       destroy-on-close
     >
@@ -181,10 +213,17 @@
         :rules="promptRules"
         label-position="top"
       >
-        <el-form-item label="名称" prop="name">
+        <el-alert
+          v-if="isAuxiliaryEditing"
+          title="此 Prompt 固定用于附加内容，保存后下一次 AI 处理立即生效。"
+          type="info"
+          :closable="false"
+          class="prompt-dialog-notice"
+        />
+        <el-form-item v-if="!isAuxiliaryEditing" label="名称" prop="name">
           <el-input v-model="promptForm.name" maxlength="100" show-word-limit />
         </el-form-item>
-        <el-form-item label="说明" prop="description">
+        <el-form-item v-if="!isAuxiliaryEditing" label="说明" prop="description">
           <el-input v-model="promptForm.description" maxlength="500" show-word-limit />
         </el-form-item>
         <el-form-item label="System Prompt" prop="systemPrompt">
@@ -193,7 +232,7 @@
         <el-form-item :label="`Human Prompt，必须包含 {${promptForm.inputVariable}}`" prop="humanPrompt">
           <el-input v-model="promptForm.humanPrompt" type="textarea" :rows="12" resize="vertical" />
         </el-form-item>
-        <el-form-item label="附加内容">
+        <el-form-item v-if="!isAuxiliaryEditing" label="附加内容">
           <el-checkbox v-model="promptForm.includeViewpoint">带有频道观点</el-checkbox>
           <el-checkbox v-model="promptForm.includeSafety">带有温馨提醒</el-checkbox>
         </el-form-item>
@@ -210,7 +249,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { aiConfigApi, aiPromptApi, aiUsageApi } from '../../services/api.js'
 
@@ -244,6 +283,12 @@ const rules = {
 }
 
 const prompts = ref([])
+const generationPrompts = computed(() => (
+  prompts.value.filter((prompt) => prompt.pipelineType !== 'auxiliary')
+))
+const auxiliaryPrompts = computed(() => (
+  prompts.value.filter((prompt) => prompt.pipelineType === 'auxiliary')
+))
 const promptsLoading = ref(false)
 const promptDialogVisible = ref(false)
 const promptSaving = ref(false)
@@ -258,6 +303,13 @@ const promptForm = reactive({
   inputVariable: 'facts',
   includeViewpoint: false,
   includeSafety: false
+})
+const isAuxiliaryEditing = computed(() => editingPrompt.value?.pipelineType === 'auxiliary')
+const promptDialogTitle = computed(() => {
+  if (isAuxiliaryEditing.value) {
+    return `编辑${editingPrompt.value?.name || ''} Prompt`
+  }
+  return editingPrompt.value?.id ? '编辑 Prompt' : '新增 Prompt'
 })
 
 const validateHumanPrompt = (_rule, value, callback) => {
@@ -381,8 +433,9 @@ const openPromptDialog = (prompt = null) => {
   promptForm.systemPrompt = prompt?.systemPrompt || ''
   promptForm.humanPrompt = prompt?.humanPrompt || ''
   promptForm.inputVariable = prompt?.inputVariable || 'facts'
-  promptForm.includeViewpoint = Boolean(prompt?.includeViewpoint)
-  promptForm.includeSafety = Boolean(prompt?.includeSafety)
+  const isAuxiliary = prompt?.pipelineType === 'auxiliary'
+  promptForm.includeViewpoint = isAuxiliary ? false : Boolean(prompt?.includeViewpoint)
+  promptForm.includeSafety = isAuxiliary ? false : Boolean(prompt?.includeSafety)
   promptDialogVisible.value = true
 }
 
@@ -396,8 +449,8 @@ const savePrompt = async () => {
       description: promptForm.description.trim(),
       systemPrompt: promptForm.systemPrompt.trim(),
       humanPrompt: promptForm.humanPrompt.trim(),
-      includeViewpoint: promptForm.includeViewpoint,
-      includeSafety: promptForm.includeSafety
+      includeViewpoint: isAuxiliaryEditing.value ? false : promptForm.includeViewpoint,
+      includeSafety: isAuxiliaryEditing.value ? false : promptForm.includeSafety
     }
     try {
       const res = editingPrompt.value?.id
@@ -485,8 +538,16 @@ onMounted(() => {
   margin-top: 20px;
 }
 
+.auxiliary-prompt-card {
+  margin-top: 20px;
+}
+
 .usage-card {
   margin-top: 20px;
+}
+
+.prompt-dialog-notice {
+  margin-bottom: 18px;
 }
 
 .card-header {

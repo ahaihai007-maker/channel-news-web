@@ -105,6 +105,12 @@ export const aiConfigApi = {
   update: (data) => request.put('/admin/ai-config', data)
 }
 
+export const bilibiliConfigApi = {
+  get: () => request.get('/admin/bilibili-config'),
+  update: (data) => request.put('/admin/bilibili-config', data),
+  test: (data) => request.post('/admin/bilibili-config/test', data)
+}
+
 export const interactionAiApi = {
   getList: () => request.get('/admin/interaction-ai'),
   create: (data) => request.post('/admin/interaction-ai', data),
@@ -227,6 +233,12 @@ export const pipelineApi = {
   preview: (articleId, pipeline) => request.post('/admin/pipeline/preview', { articleId, pipeline }),
   process: (articleId, pipeline, data = {}) => request.post('/admin/pipeline/process', { articleId, pipeline, ...data }),
   batchProcess: (articleIds, pipeline) => request.post('/admin/pipeline/batch-process', { articleIds, pipeline }),
+  getAdReviewArticles: (params) => request.get('/admin/pipeline/ad-review/articles', { params }),
+  getAdReviewArticleDetail: (id) => request.get(`/admin/pipeline/ad-review/articles/${id}`),
+  previewAdReview: (articleId, pipeline) => request.post('/admin/pipeline/ad-review/preview', { articleId, pipeline }),
+  processAdReview: (articleId, pipeline, data = {}) => request.post('/admin/pipeline/ad-review/process', { articleId, pipeline, ...data }),
+  releaseAdReview: (id) => request.post(`/admin/pipeline/ad-review/articles/${id}/release`),
+  rejectAdReview: (id) => request.post(`/admin/pipeline/ad-review/articles/${id}/reject`),
 }
 
 export const articlePublishPlanApi = {

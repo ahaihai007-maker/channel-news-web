@@ -5,13 +5,18 @@
     <el-card class="info-card">
       <el-alert type="info" :closable="false" show-icon>
         <template #title>
-          抓取后的文章需通过 AI 管线处理才能进入审核队列。点击文章弹出处理窗口，选择风格后执行改写，满意即可送审。
+          普通待处理文章可直接使用 AI 管线送审；抓取阶段广告检测待复核文章需先人工确认，再送审、退回普通管线或确认广告。
         </template>
       </el-alert>
     </el-card>
 
     <el-card class="list-card">
-      <div class="batch-bar" v-if="selection.length > 0">
+      <el-tabs v-model="activeQueue" @tab-change="handleQueueChange">
+        <el-tab-pane label="普通待处理" name="draft" />
+        <el-tab-pane label="广告复核" name="ad_review" />
+      </el-tabs>
+
+      <div class="batch-bar" v-if="!isAdReviewQueue && selection.length > 0">
         <span>已选 {{ selection.length }} 篇</span>
         <el-select v-model="batchPipeline" placeholder="选择风格" size="small" style="width: 150px; margin-left: 12px;">
           <el-option v-for="p in pipelineOptions" :key="p.value" :label="p.label" :value="p.value" />
@@ -23,7 +28,7 @@
 
       <template #header>
         <div class="card-header">
-          <span>待处理文章 ({{ total }})</span>
+          <span>{{ queueTitle }} ({{ total }})</span>
           <el-select v-model="sourceFilter" placeholder="筛选频道" clearable style="width: 250px;" @change="loadArticles">
             <el-option v-for="ch in channels" :key="ch" :label="ch" :value="ch" />
           </el-select>
@@ -32,18 +37,19 @@
 
       <el-table ref="tableRef" :data="articles" @selection-change="handleSelectionChange" v-loading="loading"
         highlight-current-row @row-click="openDialog">
-        <el-table-column type="selection" width="50" />
+        <el-table-column v-if="!isAdReviewQueue" type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="sourceChannel" label="来源频道" width="150" />
         <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
         <el-table-column prop="contentPreview" label="内容预览" min-width="250" show-overflow-tooltip />
+        <el-table-column v-if="isAdReviewQueue" prop="rejectReason" label="广告检测原因" min-width="260" show-overflow-tooltip />
         <el-table-column label="附件" width="70" align="center">
           <template #default="scope">
             <el-icon v-if="scope.row.hasMedia"><PictureFilled /></el-icon>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="190" fixed="right">
+        <el-table-column label="操作" :width="isAdReviewQueue ? 110 : 190" fixed="right">
           <template #default="scope">
             <div class="operation-buttons" @click.stop>
               <el-tooltip content="打开原文与处理结果对照窗口，可选择处理风格并预览" placement="top">
@@ -59,6 +65,7 @@
               </el-tooltip>
 
               <el-popconfirm
+                v-if="!isAdReviewQueue"
                 width="260"
                 title="将使用标准新闻直接处理并送审，确定继续？"
                 confirm-button-text="确认快处理"
@@ -104,6 +111,15 @@
         <div class="dialog-left">
           <div class="panel-header">原文</div>
           <div class="original-content">
+            <el-alert
+              v-if="isDialogAdReview"
+              class="ad-review-reason"
+              title="广告检测原因"
+              :description="dialogArticle?.rejectReason || '未记录检测原因'"
+              type="warning"
+              :closable="false"
+              show-icon
+            />
             <h4>{{ dialogArticle?.title }}</h4>
             <div v-if="dialogFiles.length > 0" class="media-section">
               <div class="media-title">附件预览</div>
@@ -201,7 +217,27 @@
           </el-select>
           <div style="flex:1" />
           <el-button @click="dialogVisible = false">关闭</el-button>
-          <el-button type="success" @click="confirmAndSubmit" :disabled="!canSubmitDialogResult" :loading="dialogSubmitting">送审</el-button>
+          <el-button
+            v-if="isDialogAdReview"
+            type="danger"
+            plain
+            @click="confirmAd"
+            :loading="reviewActionLoading"
+          >
+            确认广告
+          </el-button>
+          <el-button
+            v-if="isDialogAdReview"
+            type="warning"
+            plain
+            @click="releaseToPipeline"
+            :loading="reviewActionLoading"
+          >
+            退回普通 AI 管线
+          </el-button>
+          <el-button type="success" @click="confirmAndSubmit" :disabled="!canSubmitDialogResult" :loading="dialogSubmitting">
+            {{ isDialogAdReview ? '确认非广告并送审' : '送审' }}
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -210,7 +246,7 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { PictureFilled, Loading } from '@element-plus/icons-vue'
 import { aiPromptApi, pipelineApi } from '../../services/api.js'
 
@@ -229,6 +265,7 @@ const pipelineOptions = ref([...fixedPipelineOptions, ...fallbackPromptOptions])
 
 const articles = ref([])
 const loading = ref(false)
+const activeQueue = ref('draft')
 const total = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(20)
@@ -238,17 +275,23 @@ const selection = ref([])
 const batchPipeline = ref('standard')
 const batchProcessing = ref(false)
 const processingIds = ref(new Set())
+const tableRef = ref(null)
 
 const dialogVisible = ref(false)
 const dialogArticle = ref(null)
+const dialogQueue = ref('draft')
 const dialogOriginalHtml = ref('')
 const dialogPipeline = ref('standard')
 const dialogResult = ref('')
 const dialogResultTitle = ref('')
 const dialogProcessing = ref(false)
 const dialogSubmitting = ref(false)
+const reviewActionLoading = ref(false)
 const dialogFiles = ref([])
 
+const isAdReviewQueue = computed(() => activeQueue.value === 'ad_review')
+const isDialogAdReview = computed(() => dialogQueue.value === 'ad_review')
+const queueTitle = computed(() => isAdReviewQueue.value ? '广告复核文章' : '普通待处理文章')
 const dialogImageFiles = computed(() => dialogFiles.value.filter(file => file.fileType === 'image'))
 const dialogVideoFiles = computed(() => dialogFiles.value.filter(file => file.fileType === 'video'))
 const dialogOtherFiles = computed(() => dialogFiles.value.filter(file => file.fileType !== 'image' && file.fileType !== 'video'))
@@ -267,13 +310,17 @@ const loadArticles = async () => {
   try {
     const params = { page: pageNum.value, pageSize: pageSize.value }
     if (sourceFilter.value) params.source_channel = sourceFilter.value
-    const res = await pipelineApi.getArticles(params)
+    const res = isAdReviewQueue.value
+      ? await pipelineApi.getAdReviewArticles(params)
+      : await pipelineApi.getArticles(params)
     if (res.code === 200) {
       articles.value = res.data.list || []
       total.value = res.data.total
       const channelSet = new Set()
       articles.value.forEach(a => { if (a.sourceChannel) channelSet.add(a.sourceChannel) })
       channels.value = [...channelSet]
+    } else {
+      ElMessage.error(res.message || '加载失败')
     }
   } catch (e) {
     ElMessage.error('加载失败')
@@ -287,7 +334,7 @@ const loadPipelineOptions = async () => {
     const res = await aiPromptApi.getList()
     if (res.code !== 200) return
     const promptOptions = (res.data || [])
-      .filter((prompt) => prompt.isActive)
+      .filter((prompt) => prompt.isActive && prompt.pipelineType !== 'auxiliary')
       .map((prompt) => ({
         label: prompt.name,
         value: prompt.promptKey
@@ -299,11 +346,19 @@ const loadPipelineOptions = async () => {
 }
 
 const handleSelectionChange = (val) => {
-  selection.value = val
+  selection.value = isAdReviewQueue.value ? [] : val
+}
+
+const handleQueueChange = () => {
+  pageNum.value = 1
+  selection.value = []
+  tableRef.value?.clearSelection()
+  loadArticles()
 }
 
 const openDialog = async (row) => {
   dialogArticle.value = row
+  dialogQueue.value = activeQueue.value
   dialogOriginalHtml.value = ''
   dialogResult.value = ''
   dialogResultTitle.value = ''
@@ -312,13 +367,19 @@ const openDialog = async (row) => {
   dialogVisible.value = true
 
   try {
-    const res = await pipelineApi.getArticleDetail(row.id)
+    const res = isDialogAdReview.value
+      ? await pipelineApi.getAdReviewArticleDetail(row.id)
+      : await pipelineApi.getArticleDetail(row.id)
     if (res.code === 200) {
+      dialogArticle.value = { ...row, ...res.data }
       dialogOriginalHtml.value = res.data.contentHtml || ''
       dialogFiles.value = res.data.files || []
+    } else {
+      ElMessage.error(res.message || '文章详情加载失败')
     }
   } catch (e) {
     dialogOriginalHtml.value = `<p>${row.contentPreview}</p>`
+    ElMessage.error('文章详情加载失败')
   }
 }
 
@@ -328,7 +389,9 @@ const executePreview = async () => {
   dialogResult.value = ''
   dialogResultTitle.value = ''
   try {
-    const res = await pipelineApi.preview(dialogArticle.value.id, dialogPipeline.value)
+    const res = isDialogAdReview.value
+      ? await pipelineApi.previewAdReview(dialogArticle.value.id, dialogPipeline.value)
+      : await pipelineApi.preview(dialogArticle.value.id, dialogPipeline.value)
     if (res.code === 200) {
       dialogResult.value = res.data.contentPlain
       dialogResultTitle.value = res.data.title
@@ -362,10 +425,13 @@ const confirmAndSubmit = async () => {
   }
   dialogSubmitting.value = true
   try {
-    const res = await pipelineApi.process(dialogArticle.value.id, dialogPipeline.value, {
+    const processData = {
       title: dialogResultTitle.value.trim(),
       content: dialogResult.value.trim()
-    })
+    }
+    const res = isDialogAdReview.value
+      ? await pipelineApi.processAdReview(dialogArticle.value.id, dialogPipeline.value, processData)
+      : await pipelineApi.process(dialogArticle.value.id, dialogPipeline.value, processData)
     if (res.code === 200) {
       ElMessage.success('处理完成，已提交待审核')
       dialogVisible.value = false
@@ -377,6 +443,58 @@ const confirmAndSubmit = async () => {
     ElMessage.error('送审失败')
   } finally {
     dialogSubmitting.value = false
+  }
+}
+
+const releaseToPipeline = async () => {
+  if (!dialogArticle.value || reviewActionLoading.value) return
+  reviewActionLoading.value = true
+  try {
+    const res = await pipelineApi.releaseAdReview(dialogArticle.value.id)
+    if (res.code === 200) {
+      ElMessage.success('已退回普通 AI 管线')
+      dialogVisible.value = false
+      loadArticles()
+    } else {
+      ElMessage.error(res.message || '退回失败')
+    }
+  } catch (e) {
+    ElMessage.error('退回失败')
+  } finally {
+    reviewActionLoading.value = false
+  }
+}
+
+const confirmAd = async () => {
+  if (!dialogArticle.value || reviewActionLoading.value) return
+  try {
+    await ElMessageBox.confirm(
+      '确认后文章将进入已拒绝状态，并保留正文、附件和检测原因。是否继续？',
+      '确认广告',
+      {
+        confirmButtonText: '确认广告',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch (e) {
+    return
+  }
+
+  reviewActionLoading.value = true
+  try {
+    const res = await pipelineApi.rejectAdReview(dialogArticle.value.id)
+    if (res.code === 200) {
+      ElMessage.success('已确认广告')
+      dialogVisible.value = false
+      loadArticles()
+    } else {
+      ElMessage.error(res.message || '确认失败')
+    }
+  } catch (e) {
+    ElMessage.error('确认失败')
+  } finally {
+    reviewActionLoading.value = false
   }
 }
 
@@ -510,6 +628,10 @@ onMounted(() => {
   line-height: 1.8;
   color: #606266;
   font-size: 14px;
+}
+
+.ad-review-reason {
+  margin-bottom: 14px;
 }
 
 .result-area {

@@ -16,6 +16,8 @@ const props = defineProps({
 
 const statusMap = {
   'draft': { text: '草稿', type: 'info' },
+  'ad_review': { text: '广告复核', type: 'warning' },
+  'AD_REVIEW': { text: '广告复核', type: 'warning' },
   'pending': { text: '待审核', type: 'warning' },
   'approved': { text: '已通过', type: 'success' },
   'rejected': { text: '已拒绝', type: 'danger' },

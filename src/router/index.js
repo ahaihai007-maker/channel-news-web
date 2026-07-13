@@ -110,6 +110,11 @@ const routes = [
         component: () => import('../views/admin/AiConfigView.vue')
       },
       {
+        path: 'bilibili-config',
+        name: 'AdminBilibiliConfig',
+        component: () => import('../views/admin/BilibiliConfigView.vue')
+      },
+      {
         path: 'interaction-ai',
         name: 'AdminInteractionAi',
         component: () => import('../views/admin/InteractionAiView.vue')

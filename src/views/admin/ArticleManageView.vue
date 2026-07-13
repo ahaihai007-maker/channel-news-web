@@ -239,6 +239,7 @@ const getTypeTagType = (type) => {
 // 获取状态标签
 const getStatusLabel = (status) => {
   const map = {
+    'AD_REVIEW': '广告复核',
     'PENDING': '待审核',
     'APPROVED': '已审核',
     'PUBLISHING': '发布中',
@@ -250,6 +251,7 @@ const getStatusLabel = (status) => {
 
 const getStatusTagType = (status) => {
   const map = {
+    'AD_REVIEW': 'warning',
     'PENDING': 'warning',
     'APPROVED': 'success',
     'PUBLISHING': 'primary',

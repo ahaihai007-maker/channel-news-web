@@ -38,7 +38,7 @@
         </el-table-column>
         <el-table-column prop="lastStatus" label="上次状态" width="110" />
         <el-table-column label="采集状态" width="110">
-          <template #default="{ row }">{{ row.planType === 'BILIBILI_AUTHOR_COMMENT' ? (row.lastCollectStatus || '-') : '-' }}</template>
+          <template #default="{ row }">{{ row.planType === 'BILIBILI_AUTHOR_COMMENT' ? collectStatusName(row.lastCollectStatus) : '-' }}</template>
         </el-table-column>
         <el-table-column label="下次采集" width="180">
           <template #default="{ row }">{{ row.planType === 'BILIBILI_AUTHOR_COMMENT' ? formatDateTime(row.nextCollectAt) : '-' }}</template>
@@ -100,14 +100,10 @@
             </el-col>
           </el-row>
           <el-row :gutter="16">
-            <el-col :span="12">
-              <el-form-item label="轮询间隔">
-                <el-input-number v-model="form.bilibiliPollIntervalMinutes" :min="1" :max="1440" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="留言稳定时间">
-                <el-input-number v-model="form.bilibiliCommentSettleMinutes" :min="1" :max="60" />
+            <el-col :span="24">
+              <el-form-item label="失败重试间隔">
+                <el-input-number v-model="form.bilibiliPollIntervalMinutes" :min="60" :max="1440" />
+                <span class="field-unit">分钟</span>
               </el-form-item>
             </el-col>
           </el-row>
@@ -310,9 +306,8 @@ const defaultForm = () => ({
   autoPublish: false,
   triggerOnNewArticle: false,
   bilibiliSpaceMid: '',
-  bilibiliCollectTimeOfDay: '22:30',
-  bilibiliPollIntervalMinutes: 10,
-  bilibiliCommentSettleMinutes: 5,
+  bilibiliCollectTimeOfDay: '06:00',
+  bilibiliPollIntervalMinutes: 360,
   bilibiliCompletionMarker: '今天分享到此结束'
 })
 
@@ -321,7 +316,7 @@ const form = reactive(defaultForm())
 const pipelineOptions = computed(() => [
   ...fixedPipelineOptions,
   ...prompts.value
-    .filter((prompt) => prompt.isActive)
+    .filter((prompt) => prompt.isActive && prompt.pipelineType !== 'auxiliary')
     .map((prompt) => ({
       label: prompt.name,
       value: prompt.promptKey
@@ -441,7 +436,6 @@ const buildPayload = () => ({
   bilibiliSpaceMid: form.planType === 'BILIBILI_AUTHOR_COMMENT' ? form.bilibiliSpaceMid.trim() : null,
   bilibiliCollectTimeOfDay: form.bilibiliCollectTimeOfDay,
   bilibiliPollIntervalMinutes: form.bilibiliPollIntervalMinutes,
-  bilibiliCommentSettleMinutes: form.bilibiliCommentSettleMinutes,
   bilibiliCompletionMarker: form.bilibiliCompletionMarker
 })
 
@@ -519,6 +513,16 @@ const loadRuns = async () => {
 
 const promptName = (key) => pipelineOptions.value.find((prompt) => prompt.value === key)?.label || key
 const planTypeName = (type) => type === 'BILIBILI_AUTHOR_COMMENT' ? 'Bilibili 作者留言' : '频道文章'
+const collectStatusName = (status) => ({
+  WAITING_VIDEO: '等待影片',
+  WAITING_COMMENT: '等待留言',
+  BLOCKED_412: '请求受限',
+  CONFIG_ERROR: '配置错误',
+  INCOMPLETE: '留言不完整',
+  SUCCESS: '成功',
+  RUNNING: '采集中',
+  FAILED: '失败'
+}[status] || status || '-')
 const templateName = (id) => {
   if (!id) return '-'
   return templates.value.find((template) => template.id === id)?.name || `#${id}`
@@ -563,5 +567,10 @@ onMounted(loadAll)
 
 .panel {
   border-radius: 8px;
+}
+
+.field-unit {
+  margin-left: 8px;
+  color: #6b7280;
 }
 </style>
