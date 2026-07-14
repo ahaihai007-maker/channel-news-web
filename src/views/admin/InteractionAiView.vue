@@ -28,6 +28,13 @@
           </template>
         </el-table-column>
         <el-table-column prop="modelId" label="互动模型" min-width="190" show-overflow-tooltip />
+        <el-table-column label="联网搜索" width="100">
+          <template #default="scope">
+            <el-tag :type="webSearchModeType(scope.row.webSearchMode)">
+              {{ webSearchModeLabel(scope.row.webSearchMode) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="触发" width="190">
           <template #default="scope">
             <div class="tag-row">
@@ -165,6 +172,87 @@
             </div>
           </el-tab-pane>
 
+          <el-tab-pane label="联网搜索" name="web-search">
+            <el-form-item label="搜索模式" prop="webSearchMode">
+              <el-radio-group v-model="form.webSearchMode">
+                <el-radio-button value="off">关闭</el-radio-button>
+                <el-radio-button value="auto">自动</el-radio-button>
+                <el-radio-button value="required">必须</el-radio-button>
+              </el-radio-group>
+              <div class="field-help">
+                自动模式仅在模型判断问题涉及最新资讯时搜索；必须模式要求实际搜索并返回至少一个来源。
+              </div>
+            </el-form-item>
+            <el-form-item label="来源显示" prop="webSearchSourceDisplayMode">
+              <el-radio-group
+                v-model="form.webSearchSourceDisplayMode"
+                :disabled="form.webSearchMode === 'off'"
+              >
+                <el-radio-button value="smart">智能</el-radio-button>
+                <el-radio-button value="always">始终</el-radio-button>
+                <el-radio-button value="never">从不</el-radio-button>
+              </el-radio-group>
+              <div class="field-help">
+                智能模式仅在用户明确要求来源、链接、查证或证据时附加 URL；搜索结果仍会保存供后续追问。
+              </div>
+            </el-form-item>
+            <div class="form-grid three-columns">
+              <el-form-item label="单次结果上限">
+                <el-input-number
+                  v-model="form.webSearchMaxResults"
+                  :min="1"
+                  :max="10"
+                  :disabled="form.webSearchMode === 'off'"
+                />
+              </el-form-item>
+              <el-form-item label="累计结果上限" prop="webSearchMaxTotalResults">
+                <el-input-number
+                  v-model="form.webSearchMaxTotalResults"
+                  :min="1"
+                  :max="10"
+                  :disabled="form.webSearchMode === 'off'"
+                />
+              </el-form-item>
+              <el-form-item label="每条结果字符上限">
+                <el-input-number
+                  v-model="form.webSearchMaxCharacters"
+                  :min="500"
+                  :max="5000"
+                  :step="100"
+                  :disabled="form.webSearchMode === 'off'"
+                />
+              </el-form-item>
+            </div>
+            <el-form-item label="允许网域">
+              <el-select
+                v-model="form.webSearchAllowedDomains"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                :multiple-limit="20"
+                :disabled="form.webSearchMode === 'off'"
+                placeholder="留空表示不限制；输入域名后按 Enter"
+                style="width: 100%"
+              />
+              <div class="field-help">仅接受域名，例如 reuters.com；不接受协议、端口或路径。</div>
+            </el-form-item>
+            <el-form-item label="排除网域">
+              <el-select
+                v-model="form.webSearchExcludedDomains"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                :multiple-limit="20"
+                :disabled="form.webSearchMode === 'off'"
+                placeholder="输入域名后按 Enter"
+                style="width: 100%"
+              />
+            </el-form-item>
+            <div class="field-help">搜索引擎固定为 Exa。每次 OpenRouter API 请求最多重试一次。</div>
+          </el-tab-pane>
+
           <el-tab-pane label="Prompt" name="prompt">
             <el-form-item label="System Prompt" prop="systemPrompt">
               <el-input v-model="form.systemPrompt" type="textarea" :rows="6" resize="vertical" />
@@ -250,6 +338,13 @@ const defaultForm = () => ({
   postReplyLimit: 30,
   maxConcurrentRequests: 2,
   failureMode: 'notify',
+  webSearchMode: 'off',
+  webSearchSourceDisplayMode: 'smart',
+  webSearchMaxResults: 3,
+  webSearchMaxTotalResults: 3,
+  webSearchMaxCharacters: 1500,
+  webSearchAllowedDomains: [],
+  webSearchExcludedDomains: [],
   bindings: [{ channelId: '', discussionGroupId: '', enabled: true }]
 })
 
@@ -277,8 +372,29 @@ const rules = {
   modelId: [{ required: true, message: '请输入互动模型', trigger: 'blur' }],
   systemPrompt: [{ required: true, message: '请输入 System Prompt', trigger: 'blur' }],
   groupPromptTemplate: [templateRule(['user_question', 'reply_context', 'recent_messages'])],
-  articlePromptTemplate: [templateRule(['article_title', 'article_content', 'user_question', 'reply_context', 'recent_messages'])]
+  articlePromptTemplate: [templateRule(['article_title', 'article_content', 'user_question', 'reply_context', 'recent_messages'])],
+  webSearchMode: [{ required: true, message: '请选择联网搜索模式', trigger: 'change' }],
+  webSearchSourceDisplayMode: [{ required: true, message: '请选择来源显示模式', trigger: 'change' }],
+  webSearchMaxTotalResults: [{
+    validator: (_rule, value, callback) => {
+      if (value < form.webSearchMaxResults) callback(new Error('累计结果上限不得小于单次结果上限'))
+      else callback()
+    },
+    trigger: 'change'
+  }]
 }
+
+const webSearchModeLabel = (mode) => ({
+  off: '关闭',
+  auto: '自动',
+  required: '必须'
+}[mode] || '关闭')
+
+const webSearchModeType = (mode) => ({
+  off: 'info',
+  auto: 'success',
+  required: 'warning'
+}[mode] || 'info')
 
 const requireSuccess = (response) => {
   if (response.code !== 200) throw new Error(response.message || '请求失败')
@@ -289,7 +405,7 @@ const clonePlain = (value) => structuredClone(toRaw(value))
 
 const assignForm = (value) => {
   Object.keys(form).forEach((key) => delete form[key])
-  Object.assign(form, clonePlain(value))
+  Object.assign(form, defaultForm(), clonePlain(value))
 }
 
 const loadRoutes = async () => {

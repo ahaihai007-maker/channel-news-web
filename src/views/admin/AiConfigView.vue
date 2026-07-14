@@ -55,7 +55,7 @@
         <div class="card-header">
           <div>
             <span>AI 用量统计</span>
-            <span class="sub-title">按 Asia/Singapore 日期统计已记录的 AI API token</span>
+            <span class="sub-title">按 Asia/Singapore 日期统计已记录的 AI API token 与联网搜索次数</span>
           </div>
           <el-button :loading="usageLoading" @click="loadUsage">
             刷新
@@ -64,7 +64,7 @@
       </template>
 
       <el-row :gutter="16" class="usage-grid">
-        <el-col :xs="24" :sm="12" :lg="6">
+        <el-col :xs="24" :sm="12" :lg="8">
           <div class="usage-metric">
             <span class="usage-label">今日 Token</span>
             <strong>{{ formatNumber(usage.todayTotalTokens) }}</strong>
@@ -73,14 +73,21 @@
             </small>
           </div>
         </el-col>
-        <el-col :xs="24" :sm="12" :lg="6">
+        <el-col :xs="24" :sm="12" :lg="8">
           <div class="usage-metric">
             <span class="usage-label">今日调用</span>
             <strong>{{ formatNumber(usage.todayCalls) }}</strong>
             <small>成功调用次数</small>
           </div>
         </el-col>
-        <el-col :xs="24" :sm="12" :lg="6">
+        <el-col :xs="24" :sm="12" :lg="8">
+          <div class="usage-metric">
+            <span class="usage-label">今日联网搜索</span>
+            <strong>{{ formatNumber(usage.todayWebSearchRequests) }}</strong>
+            <small>OpenRouter web_search_requests</small>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :lg="8">
           <div class="usage-metric">
             <span class="usage-label">本月 Token</span>
             <strong>{{ formatNumber(usage.monthTotalTokens) }}</strong>
@@ -89,11 +96,18 @@
             </small>
           </div>
         </el-col>
-        <el-col :xs="24" :sm="12" :lg="6">
+        <el-col :xs="24" :sm="12" :lg="8">
           <div class="usage-metric">
             <span class="usage-label">本月调用</span>
             <strong>{{ formatNumber(usage.monthCalls) }}</strong>
             <small>成功调用次数</small>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :lg="8">
+          <div class="usage-metric">
+            <span class="usage-label">本月联网搜索</span>
+            <strong>{{ formatNumber(usage.monthWebSearchRequests) }}</strong>
+            <small>OpenRouter web_search_requests</small>
           </div>
         </el-col>
       </el-row>
@@ -267,10 +281,12 @@ const usage = reactive({
   todayCompletionTokens: 0,
   todayTotalTokens: 0,
   todayCalls: 0,
+  todayWebSearchRequests: 0,
   monthPromptTokens: 0,
   monthCompletionTokens: 0,
   monthTotalTokens: 0,
-  monthCalls: 0
+  monthCalls: 0,
+  monthWebSearchRequests: 0
 })
 
 const rules = {
@@ -349,10 +365,12 @@ const loadUsage = async () => {
         todayCompletionTokens: res.data?.todayCompletionTokens || 0,
         todayTotalTokens: res.data?.todayTotalTokens || 0,
         todayCalls: res.data?.todayCalls || 0,
+        todayWebSearchRequests: res.data?.todayWebSearchRequests || 0,
         monthPromptTokens: res.data?.monthPromptTokens || 0,
         monthCompletionTokens: res.data?.monthCompletionTokens || 0,
         monthTotalTokens: res.data?.monthTotalTokens || 0,
-        monthCalls: res.data?.monthCalls || 0
+        monthCalls: res.data?.monthCalls || 0,
+        monthWebSearchRequests: res.data?.monthWebSearchRequests || 0
       })
       return
     }
