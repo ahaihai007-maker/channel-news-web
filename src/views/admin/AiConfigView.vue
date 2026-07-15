@@ -246,7 +246,7 @@
         <el-form-item :label="`Human Prompt，必须包含 {${promptForm.inputVariable}}`" prop="humanPrompt">
           <el-input v-model="promptForm.humanPrompt" type="textarea" :rows="12" resize="vertical" />
         </el-form-item>
-        <el-form-item v-if="!isAuxiliaryEditing" label="附加内容">
+        <el-form-item v-if="supportsPromptExtras" label="附加内容">
           <el-checkbox v-model="promptForm.includeViewpoint">带有频道观点</el-checkbox>
           <el-checkbox v-model="promptForm.includeSafety">带有温馨提醒</el-checkbox>
         </el-form-item>
@@ -321,6 +321,9 @@ const promptForm = reactive({
   includeSafety: false
 })
 const isAuxiliaryEditing = computed(() => editingPrompt.value?.pipelineType === 'auxiliary')
+const supportsPromptExtras = computed(() => (
+  !['auxiliary', 'digest'].includes(editingPrompt.value?.pipelineType)
+))
 const promptDialogTitle = computed(() => {
   if (isAuxiliaryEditing.value) {
     return `编辑${editingPrompt.value?.name || ''} Prompt`
@@ -451,9 +454,9 @@ const openPromptDialog = (prompt = null) => {
   promptForm.systemPrompt = prompt?.systemPrompt || ''
   promptForm.humanPrompt = prompt?.humanPrompt || ''
   promptForm.inputVariable = prompt?.inputVariable || 'facts'
-  const isAuxiliary = prompt?.pipelineType === 'auxiliary'
-  promptForm.includeViewpoint = isAuxiliary ? false : Boolean(prompt?.includeViewpoint)
-  promptForm.includeSafety = isAuxiliary ? false : Boolean(prompt?.includeSafety)
+  const supportsExtras = !['auxiliary', 'digest'].includes(prompt?.pipelineType)
+  promptForm.includeViewpoint = supportsExtras ? Boolean(prompt?.includeViewpoint) : false
+  promptForm.includeSafety = supportsExtras ? Boolean(prompt?.includeSafety) : false
   promptDialogVisible.value = true
 }
 
@@ -467,8 +470,8 @@ const savePrompt = async () => {
       description: promptForm.description.trim(),
       systemPrompt: promptForm.systemPrompt.trim(),
       humanPrompt: promptForm.humanPrompt.trim(),
-      includeViewpoint: isAuxiliaryEditing.value ? false : promptForm.includeViewpoint,
-      includeSafety: isAuxiliaryEditing.value ? false : promptForm.includeSafety
+      includeViewpoint: supportsPromptExtras.value ? promptForm.includeViewpoint : false,
+      includeSafety: supportsPromptExtras.value ? promptForm.includeSafety : false
     }
     try {
       const res = editingPrompt.value?.id

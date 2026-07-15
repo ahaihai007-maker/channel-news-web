@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">Bilibili 采集配置</h2>
-        <p class="page-subtitle">配置 yt-dlp 访问 Bilibili 时使用的完整 Netscape Cookie 与浏览器 User-Agent。</p>
+        <p class="page-subtitle">配置 Bilibili API 使用的浏览器 User-Agent；Cookie 仅用于投稿列表后备查询。</p>
       </div>
       <el-tag :type="form.configured ? 'success' : 'danger'">
         {{ form.configured ? '已配置' : '未配置' }}
@@ -22,7 +22,7 @@
             autocomplete="off"
             placeholder="# Netscape HTTP Cookie File"
           />
-          <div class="field-note">必须包含 Netscape 文件头及 bilibili.com 域名记录；页面与接口返回完整原文。</div>
+          <div class="field-note">可留空；配置时必须包含 Netscape 文件头及 bilibili.com 域名记录。</div>
         </el-form-item>
 
         <el-form-item label="User-Agent" prop="userAgent">
@@ -44,7 +44,7 @@
       <template #header>
         <div>
           <div class="section-title">连接测试</div>
-          <div class="field-note">只读取空间最近一则影片列表与 metadata，不下载评论。</div>
+          <div class="field-note">只读取空间合集与最近一则影片 metadata，不下载评论。</div>
         </div>
       </template>
 
@@ -87,7 +87,6 @@ const form = reactive({
 })
 
 const rules = {
-  cookieText: [{ required: true, message: '请输入 Netscape Cookie', trigger: 'blur' }],
   userAgent: [{ required: true, message: '请输入完整浏览器 User-Agent', trigger: 'blur' }]
 }
 

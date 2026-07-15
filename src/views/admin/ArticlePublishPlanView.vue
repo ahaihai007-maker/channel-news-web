@@ -31,7 +31,7 @@
         </el-table-column>
         <el-table-column prop="scheduleType" label="定时" width="100" />
         <el-table-column label="新文章触发" width="110">
-          <template #default="{ row }">{{ row.triggerOnNewArticle ? '是' : '否' }}</template>
+          <template #default="{ row }">{{ row.planType === 'ARTICLE_DRAFT' ? (row.triggerOnNewArticle ? '是' : '否') : '-' }}</template>
         </el-table-column>
         <el-table-column label="下次执行" width="180">
           <template #default="{ row }">{{ formatDateTime(row.nextRunAt) }}</template>
@@ -76,6 +76,7 @@
           <el-radio-group v-model="form.planType" @change="onPlanTypeChange">
             <el-radio-button value="ARTICLE_DRAFT">频道文章</el-radio-button>
             <el-radio-button value="BILIBILI_AUTHOR_COMMENT">Bilibili 作者留言</el-radio-button>
+            <el-radio-button value="DAILY_DIGEST">今日晚报</el-radio-button>
           </el-radio-group>
         </el-form-item>
 
@@ -102,26 +103,37 @@
           <el-row :gutter="16">
             <el-col :span="24">
               <el-form-item label="失败重试间隔">
-                <el-input-number v-model="form.bilibiliPollIntervalMinutes" :min="60" :max="1440" />
+                <el-input-number v-model="form.bilibiliPollIntervalMinutes" :min="30" :max="1440" />
                 <span class="field-unit">分钟</span>
               </el-form-item>
             </el-col>
           </el-row>
           <el-form-item label="完成标记">
             <el-input v-model="form.bilibiliCompletionMarker" maxlength="100" />
+            <div class="field-note">留空时，抓齐当次非空作者留言后立即交给 LLM 处理。</div>
           </el-form-item>
+        </template>
+
+        <template v-if="form.planType === 'DAILY_DIGEST'">
+          <el-alert
+            title="每次执行统计执行时刻前24小时内已发布的非广告新闻；无符合资料时跳过发布。"
+            type="info"
+            :closable="false"
+            show-icon
+            class="digest-alert"
+          />
         </template>
 
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="Prompt" prop="promptKey">
+            <el-form-item :label="form.planType === 'DAILY_DIGEST' ? '摘要 Prompt' : 'Prompt'" prop="promptKey">
               <el-select v-model="form.promptKey" filterable placeholder="选择 Prompt" style="width: 100%;">
-                <el-option v-for="prompt in pipelineOptions" :key="prompt.value" :label="prompt.label" :value="prompt.value" />
+                <el-option v-for="prompt in compatiblePipelineOptions" :key="prompt.value" :label="prompt.label" :value="prompt.value" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="每次数量" prop="maxArticlesPerRun">
+            <el-form-item :label="form.planType === 'DAILY_DIGEST' ? '最多纳入新闻' : '每次数量'" prop="maxArticlesPerRun">
               <el-input-number v-model="form.maxArticlesPerRun" :min="1" :max="50" />
             </el-form-item>
           </el-col>
@@ -142,22 +154,40 @@
           </el-col>
         </el-row>
 
-        <el-row :gutter="16">
+        <el-row v-if="form.planType !== 'DAILY_DIGEST'" :gutter="16">
           <el-col :span="8">
-            <el-form-item label="Emoji 前缀">
-              <el-switch v-model="form.useEmoji" />
+            <el-form-item label="地区新闻前缀">
+              <el-switch
+                v-model="form.includeRegionPrefix"
+                active-text="显示"
+                inactive-text="隐藏"
+              />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="16">
             <el-form-item label="地区标签">
-              <el-select v-model="form.regionTag" clearable placeholder="自动识别">
+              <el-select
+                v-model="form.regionTag"
+                clearable
+                :disabled="!form.includeRegionPrefix"
+                placeholder="自动识别"
+                style="width: 100%;"
+              >
                 <el-option v-for="tag in regionTags" :key="tag.code" :label="tag.name" :value="tag.code" />
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+        </el-row>
+
+        <el-row :gutter="16">
+          <el-col :span="form.planType === 'DAILY_DIGEST' ? 24 : 8">
+            <el-form-item label="Emoji 前缀">
+              <el-switch v-model="form.useEmoji" />
+            </el-form-item>
+          </el-col>
+          <el-col v-if="form.planType !== 'DAILY_DIGEST'" :span="16">
             <el-form-item label="类型标签">
-              <el-select v-model="form.typeTag" clearable placeholder="不设置">
+              <el-select v-model="form.typeTag" clearable placeholder="不设置" style="width: 100%;">
                 <el-option v-for="tag in typeTags" :key="tag.code" :label="tag.name" :value="tag.code" />
               </el-select>
             </el-form-item>
@@ -182,7 +212,7 @@
           />
         </el-form-item>
 
-        <el-row :gutter="16">
+        <el-row v-if="form.planType === 'ARTICLE_DRAFT'" :gutter="16">
           <el-col :span="8">
             <el-form-item label="定时类型" prop="scheduleType">
               <el-select v-model="form.scheduleType">
@@ -216,6 +246,14 @@
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-row v-if="form.planType === 'DAILY_DIGEST'" :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="每日发文时间" prop="timeOfDay">
+              <el-time-picker v-model="form.timeOfDay" format="HH:mm" value-format="HH:mm" style="width: 100%;" />
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
 
       <template #footer>
@@ -228,7 +266,7 @@
       <el-table v-loading="runsLoading" :data="runs" stripe>
         <el-table-column prop="articleId" label="文章ID" width="90" />
         <el-table-column prop="promptKey" label="Prompt" min-width="130" />
-        <el-table-column prop="stage" label="阶段" width="120" />
+        <el-table-column prop="stage" label="阶段" width="170" />
         <el-table-column prop="status" label="状态" width="100" />
         <el-table-column prop="telegramMessageId" label="消息ID" width="110" />
         <el-table-column prop="error" label="错误" min-width="180" show-overflow-tooltip />
@@ -280,8 +318,8 @@ const weekdayOptions = [
 ]
 
 const fixedPipelineOptions = [
-  { label: '标准新闻', value: 'standard' },
-  { label: '新闻观点评论', value: 'news_view_commentart' }
+  { label: '标准新闻', value: 'standard', pipelineType: 'builtin' },
+  { label: '新闻观点评论', value: 'news_view_commentart', pipelineType: 'builtin' }
 ]
 
 const defaultForm = () => ({
@@ -294,6 +332,7 @@ const defaultForm = () => ({
   templateId: null,
   useTemplate: false,
   useEmoji: true,
+  includeRegionPrefix: true,
   regionTag: '',
   typeTag: '',
   targetChannels: [],
@@ -306,9 +345,9 @@ const defaultForm = () => ({
   autoPublish: false,
   triggerOnNewArticle: false,
   bilibiliSpaceMid: '',
-  bilibiliCollectTimeOfDay: '06:00',
-  bilibiliPollIntervalMinutes: 360,
-  bilibiliCompletionMarker: '今天分享到此结束'
+  bilibiliCollectTimeOfDay: '00:00',
+  bilibiliPollIntervalMinutes: 30,
+  bilibiliCompletionMarker: ''
 })
 
 const form = reactive(defaultForm())
@@ -319,14 +358,22 @@ const pipelineOptions = computed(() => [
     .filter((prompt) => prompt.isActive && prompt.pipelineType !== 'auxiliary')
     .map((prompt) => ({
       label: prompt.name,
-      value: prompt.promptKey
+      value: prompt.promptKey,
+      pipelineType: prompt.pipelineType
     }))
 ])
+
+const compatiblePipelineOptions = computed(() => (
+  form.planType === 'DAILY_DIGEST'
+    ? pipelineOptions.value.filter((prompt) => prompt.pipelineType === 'digest')
+    : pipelineOptions.value.filter((prompt) => prompt.pipelineType !== 'digest')
+))
 
 const rules = {
   name: [{ required: true, message: '请输入计划名称', trigger: 'blur' }],
   promptKey: [{ required: true, message: '请选择 Prompt', trigger: 'change' }],
   scheduleType: [{ required: true, message: '请选择定时类型', trigger: 'change' }],
+  timeOfDay: [{ required: true, message: '请选择发文时间', trigger: 'change' }],
   maxArticlesPerRun: [{ required: true, message: '请输入每次数量', trigger: 'change' }]
 }
 
@@ -384,7 +431,7 @@ const loadTags = async () => {
 
 const resetForm = () => {
   Object.assign(form, defaultForm())
-  form.promptKey = pipelineOptions.value[0]?.value || ''
+  form.promptKey = compatiblePipelineOptions.value[0]?.value || ''
 }
 
 const openCreateDialog = () => {
@@ -393,11 +440,24 @@ const openCreateDialog = () => {
 }
 
 const onPlanTypeChange = (planType) => {
-  if (planType !== 'BILIBILI_AUTHOR_COMMENT') return
-  form.scheduleType = 'DAILY'
-  form.timeOfDay = '09:00'
-  form.maxArticlesPerRun = 1
-  form.triggerOnNewArticle = false
+  if (planType === 'DAILY_DIGEST') {
+    form.sourceChannels = []
+    form.includeRegionPrefix = false
+    form.regionTag = ''
+    form.typeTag = ''
+    form.scheduleType = 'DAILY'
+    form.timeOfDay = '20:00'
+    form.maxArticlesPerRun = 20
+    form.triggerOnNewArticle = false
+  } else if (planType === 'BILIBILI_AUTHOR_COMMENT') {
+    form.includeRegionPrefix = false
+    form.scheduleType = 'DAILY'
+    form.maxArticlesPerRun = 1
+    form.triggerOnNewArticle = false
+  } else {
+    form.includeRegionPrefix = true
+  }
+  form.promptKey = compatiblePipelineOptions.value[0]?.value || ''
 }
 
 const openEditDialog = (row) => {
@@ -417,19 +477,20 @@ const buildPayload = () => ({
   name: form.name.trim(),
   enabled: form.enabled,
   planType: form.planType,
-  sourceChannels: form.sourceChannels,
+  sourceChannels: form.planType === 'ARTICLE_DRAFT' ? form.sourceChannels : [],
   promptKey: form.promptKey,
   templateId: form.useTemplate ? form.templateId : null,
   useTemplate: form.useTemplate,
   useEmoji: form.useEmoji,
-  regionTag: form.regionTag || null,
-  typeTag: form.typeTag || null,
+  includeRegionPrefix: form.planType === 'DAILY_DIGEST' ? false : form.includeRegionPrefix,
+  regionTag: form.planType === 'DAILY_DIGEST' ? null : form.regionTag || null,
+  typeTag: form.planType === 'DAILY_DIGEST' ? null : form.typeTag || null,
   targetChannels: form.targetChannels,
-  scheduleType: form.scheduleType,
-  runAt: form.runAt || null,
+  scheduleType: form.planType === 'DAILY_DIGEST' ? 'DAILY' : form.scheduleType,
+  runAt: form.planType === 'DAILY_DIGEST' ? null : form.runAt || null,
   timeOfDay: form.timeOfDay || null,
-  weekdays: form.weekdays,
-  intervalMinutes: form.intervalMinutes,
+  weekdays: form.planType === 'DAILY_DIGEST' ? [] : form.weekdays,
+  intervalMinutes: form.planType === 'DAILY_DIGEST' ? null : form.intervalMinutes,
   maxArticlesPerRun: form.maxArticlesPerRun,
   autoPublish: form.autoPublish,
   triggerOnNewArticle: form.planType === 'ARTICLE_DRAFT' && form.triggerOnNewArticle,
@@ -470,8 +531,16 @@ const runNow = async (row) => {
   try {
     const res = await articlePublishPlanApi.runNow(row.id)
     if (res.code === 200) {
+      const skipped = res.data?.skipped || 0
+      if (skipped) {
+        const reason = res.data?.skipReason === 'NO_SOURCE' ? '过去24小时无符合新闻' : '当天晚报已生成'
+        ElMessage.info(`执行完成，已跳过：${reason}`)
+        await loadPlans()
+        return
+      }
       const collected = res.data?.collection?.collected || 0
-      ElMessage.success(`执行完成，采集 ${collected} 篇，处理 ${res.data?.processed || 0} 篇`)
+      const failed = res.data?.failed || 0
+      ElMessage.success(`执行完成，采集 ${collected} 篇，处理 ${res.data?.processed || 0} 篇，失败 ${failed} 篇`)
       await loadPlans()
       return
     }
@@ -512,7 +581,11 @@ const loadRuns = async () => {
 }
 
 const promptName = (key) => pipelineOptions.value.find((prompt) => prompt.value === key)?.label || key
-const planTypeName = (type) => type === 'BILIBILI_AUTHOR_COMMENT' ? 'Bilibili 作者留言' : '频道文章'
+const planTypeName = (type) => ({
+  ARTICLE_DRAFT: '频道文章',
+  BILIBILI_AUTHOR_COMMENT: 'Bilibili 作者留言',
+  DAILY_DIGEST: '今日晚报'
+}[type] || type)
 const collectStatusName = (status) => ({
   WAITING_VIDEO: '等待影片',
   WAITING_COMMENT: '等待留言',
@@ -572,5 +645,16 @@ onMounted(loadAll)
 .field-unit {
   margin-left: 8px;
   color: #6b7280;
+}
+
+.field-note {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.digest-alert {
+  margin-bottom: 16px;
 }
 </style>
