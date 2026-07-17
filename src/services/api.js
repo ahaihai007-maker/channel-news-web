@@ -122,6 +122,21 @@ export const aiUsageApi = {
   getSummary: (params) => request.get('/admin/ai-usage/summary', { params })
 }
 
+export const monitoringApi = {
+  getDashboard: (params, signal) => request.get('/admin/monitoring/dashboard', {
+    params,
+    signal
+  }),
+  getInteractionDashboard: (params, signal) => request.get('/admin/monitoring/interaction-ai', {
+    params,
+    signal
+  }),
+  getInteractionRuns: (params, signal) => request.get('/admin/monitoring/interaction-ai/runs', {
+    params,
+    signal
+  })
+}
+
 export const aiPromptApi = {
   getList: () => request.get('/admin/ai-prompts'),
   create: (data) => request.post('/admin/ai-prompts', data),

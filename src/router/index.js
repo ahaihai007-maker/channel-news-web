@@ -60,6 +60,11 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
     children: [
       {
+        path: 'monitor-dashboard',
+        name: 'AdminMonitorDashboard',
+        component: () => import('../views/admin/MonitorDashboardView.vue')
+      },
+      {
         path: 'articles',
         name: 'AdminArticles',
         component: () => import('../views/admin/ArticlesView.vue')

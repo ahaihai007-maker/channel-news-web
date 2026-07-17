@@ -53,6 +53,7 @@ import {
   Bell,
   ChatDotRound,
   Connection,
+  DataLine,
   Document,
   MagicStick,
   Money,
@@ -65,6 +66,17 @@ const route = useRoute()
 const pendingCount = shallowRef(0)
 
 const menuSections = [
+  {
+    title: '运营监控',
+    items: [
+      {
+        index: '/admin/monitor-dashboard',
+        label: '频道监控',
+        icon: markRaw(DataLine),
+        activePaths: ['/admin/monitor-dashboard']
+      }
+    ]
+  },
   {
     title: '内容流转',
     items: [
