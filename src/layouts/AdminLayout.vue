@@ -150,6 +150,12 @@ const menuSections = [
         label: '互动 AI',
         icon: markRaw(ChatDotRound),
         activePaths: ['/admin/interaction-ai']
+      },
+      {
+        index: '/admin/interaction-stickers',
+        label: '互动贴图库',
+        icon: markRaw(ChatDotRound),
+        activePaths: ['/admin/interaction-stickers']
       }
     ]
   },

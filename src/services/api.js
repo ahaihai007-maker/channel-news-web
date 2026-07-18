@@ -118,6 +118,19 @@ export const interactionAiApi = {
   delete: (id) => request.delete(`/admin/interaction-ai/${id}`)
 }
 
+export const interactionStickerApi = {
+  getLibraries: () => request.get('/admin/interaction-sticker-libraries'),
+  importSet: (data) => request.post('/admin/interaction-sticker-libraries/import', data),
+  getAnalysisConfig: () => request.get('/admin/interaction-sticker-libraries/analysis-config'),
+  updateAnalysisConfig: (data) => request.put('/admin/interaction-sticker-libraries/analysis-config', data),
+  getLibrary: (id) => request.get(`/admin/interaction-sticker-libraries/${id}`),
+  updateLibrary: (id, data) => request.put(`/admin/interaction-sticker-libraries/${id}`, data),
+  syncLibrary: (id) => request.post(`/admin/interaction-sticker-libraries/${id}/sync`),
+  archiveLibrary: (id) => request.post(`/admin/interaction-sticker-libraries/${id}/archive`),
+  updateSticker: (id, data) => request.put(`/admin/interaction-sticker-libraries/items/${id}`, data),
+  analyzeSticker: (id, data) => request.post(`/admin/interaction-sticker-libraries/items/${id}/analyze`, data)
+}
+
 export const aiUsageApi = {
   getSummary: (params) => request.get('/admin/ai-usage/summary', { params })
 }

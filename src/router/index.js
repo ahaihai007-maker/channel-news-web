@@ -125,6 +125,11 @@ const routes = [
         component: () => import('../views/admin/InteractionAiView.vue')
       },
       {
+        path: 'interaction-stickers',
+        name: 'AdminInteractionStickers',
+        component: () => import('../views/admin/InteractionStickerLibraryView.vue')
+      },
+      {
         path: 'ads',
         name: 'AdminAds',
         component: () => import('../views/admin/AdTemplateView.vue')

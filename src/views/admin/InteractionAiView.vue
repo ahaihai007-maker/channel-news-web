@@ -59,6 +59,13 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="贴图能力" width="120">
+          <template #default="scope">
+            <el-tag :type="scope.row.stickersEnabled ? 'success' : 'info'">
+              {{ scope.row.stickersEnabled ? `开启 · ${scope.row.stickerIds?.length || 0} 张` : '关闭' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="scope">
             <el-switch
@@ -316,6 +323,104 @@
             <div class="field-help">搜索引擎固定为 Exa。每次 OpenRouter API 请求最多重试一次。</div>
           </el-tab-pane>
 
+          <el-tab-pane label="贴图能力" name="stickers">
+            <el-alert
+              title="AI 只能使用当前线路明确勾选的贴图"
+              type="info"
+              :closable="false"
+              description="模型只会收到贴图的语义说明和数据库 ID，不会取得 Telegram file_id。无效选择和贴图发送失败均由后端降级为文字。"
+              show-icon
+              class="policy-alert"
+            />
+            <div class="form-grid three-columns">
+              <el-form-item label="启用贴图能力">
+                <el-switch v-model="form.stickersEnabled" />
+              </el-form-item>
+              <el-form-item label="允许仅发送贴图">
+                <el-switch v-model="form.allowStickerOnly" :disabled="!form.stickersEnabled" />
+              </el-form-item>
+              <el-form-item label="允许文字加贴图">
+                <el-switch v-model="form.allowTextAndSticker" :disabled="!form.stickersEnabled" />
+              </el-form-item>
+              <el-form-item label="同一群贴图冷却（秒）">
+                <el-input-number
+                  v-model="form.stickerCooldownSeconds"
+                  :min="0"
+                  :max="86400"
+                  :disabled="!form.stickersEnabled"
+                />
+              </el-form-item>
+            </div>
+
+            <div class="sticker-picker-heading">
+              <div>
+                <strong>允许使用的贴图</strong>
+                <span>已选择 {{ form.stickerIds.length }} / 30</span>
+              </div>
+              <el-select
+                v-model="stickerLibraryFilter"
+                :disabled="!form.stickersEnabled"
+                placeholder="筛选贴图库"
+                style="width: 240px"
+              >
+                <el-option label="全部贴图库" value="all" />
+                <el-option
+                  v-for="library in stickerLibraries"
+                  :key="library.id"
+                  :label="library.displayName || library.telegramTitle || library.sourceSetName"
+                  :value="String(library.id)"
+                />
+              </el-select>
+            </div>
+
+            <div v-loading="stickersLoading" class="route-sticker-area" :class="{ disabled: !form.stickersEnabled }">
+              <el-empty
+                v-if="!stickersLoading && availableStickers.length === 0"
+                description="暂无可用贴图，请先在互动贴图库完成说明并启用"
+                :image-size="72"
+              />
+              <div v-else class="route-sticker-grid">
+                <button
+                  v-for="sticker in filteredAvailableStickers"
+                  :key="sticker.id"
+                  type="button"
+                  class="route-sticker-card"
+                  :class="{ selected: form.stickerIds.includes(sticker.id) }"
+                  :disabled="!form.stickersEnabled"
+                  @click="toggleRouteSticker(sticker.id)"
+                >
+                  <div class="route-sticker-preview">
+                    <TelegramStickerPreview :sticker="sticker" :alt="sticker.displayName" />
+                  </div>
+                  <div class="route-sticker-copy">
+                    <strong>{{ sticker.displayName }}</strong>
+                    <span>{{ sticker.meaning }}</span>
+                  </div>
+                  <el-checkbox
+                    :model-value="form.stickerIds.includes(sticker.id)"
+                    tabindex="-1"
+                    @click.stop
+                    @change="toggleRouteSticker(sticker.id)"
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div v-if="unavailableSelectedIds.length" class="unavailable-selection">
+              <strong>不可用的原选择</strong>
+              <span>这些贴图已停用、移除或所属图库已归档；保存时必须移除。</span>
+              <div class="tag-row">
+                <el-tag
+                  v-for="id in unavailableSelectedIds"
+                  :key="id"
+                  type="danger"
+                  closable
+                  @close="removeRouteSticker(id)"
+                >贴图 #{{ id }}</el-tag>
+              </div>
+            </div>
+          </el-tab-pane>
+
           <el-tab-pane label="高级指令" name="prompt">
             <el-form-item label="高级补充指令">
               <el-input v-model="form.systemPrompt" type="textarea" :rows="6" resize="vertical" />
@@ -371,9 +476,10 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, toRaw } from 'vue'
+import { computed, onMounted, reactive, ref, toRaw } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { interactionAiApi } from '../../services/api.js'
+import TelegramStickerPreview from '../../components/admin/interaction-stickers/TelegramStickerPreview.vue'
+import { interactionAiApi, interactionStickerApi } from '../../services/api.js'
 
 const defaultForm = () => ({
   name: '',
@@ -420,6 +526,11 @@ const defaultForm = () => ({
   webSearchMaxCharacters: 1500,
   webSearchAllowedDomains: [],
   webSearchExcludedDomains: [],
+  stickersEnabled: false,
+  allowStickerOnly: true,
+  allowTextAndSticker: true,
+  stickerCooldownSeconds: 120,
+  stickerIds: [],
   bindings: [{ channelId: '', discussionGroupId: '', enabled: true }]
 })
 
@@ -432,6 +543,18 @@ const editingId = ref(null)
 const activeTab = ref('basic')
 const formRef = ref(null)
 const form = reactive(defaultForm())
+const stickersLoading = ref(false)
+const stickerLibraries = ref([])
+const availableStickers = ref([])
+const stickerLibraryFilter = ref('all')
+
+const filteredAvailableStickers = computed(() => {
+  if (stickerLibraryFilter.value === 'all') return availableStickers.value
+  return availableStickers.value.filter((sticker) => String(sticker.libraryId) === stickerLibraryFilter.value)
+})
+
+const availableStickerIds = computed(() => new Set(availableStickers.value.map((sticker) => sticker.id)))
+const unavailableSelectedIds = computed(() => form.stickerIds.filter((id) => !availableStickerIds.value.has(id)))
 
 const hasVariables = (value, variables) => variables.every((name) => value.includes(`{${name}}`))
 const templateRule = (variables) => ({
@@ -485,6 +608,13 @@ const requireSuccess = (response) => {
 
 const clonePlain = (value) => structuredClone(toRaw(value))
 
+const responseItems = (data, key) => {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.[key])) return data[key]
+  if (Array.isArray(data?.items)) return data.items
+  return []
+}
+
 const assignForm = (value) => {
   Object.keys(form).forEach((key) => delete form[key])
   Object.assign(form, defaultForm(), clonePlain(value))
@@ -502,21 +632,84 @@ const loadRoutes = async () => {
   }
 }
 
-const openEditor = (route = null) => {
+const loadStickerChoices = async () => {
+  stickersLoading.value = true
+  try {
+    const listResponse = requireSuccess(await interactionStickerApi.getLibraries())
+    const activeLibraries = responseItems(listResponse.data, 'libraries').filter((library) => library.status === 'ACTIVE')
+    const detailResponses = await Promise.all(activeLibraries.map((library) => interactionStickerApi.getLibrary(library.id)))
+    stickerLibraries.value = activeLibraries
+    availableStickers.value = detailResponses.flatMap((response, index) => {
+      const data = requireSuccess(response).data
+      const library = activeLibraries[index]
+      return responseItems(data?.stickers ? data : data?.library || data, 'stickers')
+        .filter((sticker) => sticker.enabled && sticker.telegramStatus === 'AVAILABLE')
+        .map((sticker) => ({ ...sticker, libraryId: sticker.libraryId || library.id }))
+    })
+  } catch (error) {
+    stickerLibraries.value = []
+    availableStickers.value = []
+    ElMessage.error(error.response?.data?.message || error.message || '可用贴图加载失败')
+  } finally {
+    stickersLoading.value = false
+  }
+}
+
+const openEditor = async (route = null) => {
   editingId.value = route?.id || null
   assignForm(route ? route : defaultForm())
+  form.stickerIds = Array.isArray(form.stickerIds) ? form.stickerIds : []
   activeTab.value = 'basic'
+  stickerLibraryFilter.value = 'all'
   editorVisible.value = true
+  await loadStickerChoices()
 }
 
 const addBinding = () => {
   form.bindings.push({ channelId: '', discussionGroupId: '', enabled: true })
 }
 
+const toggleRouteSticker = (stickerId) => {
+  const index = form.stickerIds.indexOf(stickerId)
+  if (index >= 0) {
+    form.stickerIds.splice(index, 1)
+    return
+  }
+  if (form.stickerIds.length >= 30) {
+    ElMessage.warning('每条线路最多选择 30 张贴图')
+    return
+  }
+  form.stickerIds.push(stickerId)
+}
+
+const removeRouteSticker = (stickerId) => {
+  form.stickerIds = form.stickerIds.filter((id) => id !== stickerId)
+}
+
 const saveRoute = async () => {
   try {
     await formRef.value.validate()
   } catch {
+    return
+  }
+  if (form.stickersEnabled && form.stickerIds.length === 0) {
+    activeTab.value = 'stickers'
+    ElMessage.warning('启用贴图能力时至少选择一张可用贴图')
+    return
+  }
+  if (form.stickersEnabled && !form.allowStickerOnly && !form.allowTextAndSticker) {
+    activeTab.value = 'stickers'
+    ElMessage.warning('启用贴图能力时，至少允许一种贴图回复方式')
+    return
+  }
+  if (form.stickerIds.length > 30) {
+    activeTab.value = 'stickers'
+    ElMessage.warning('每条线路最多选择 30 张贴图')
+    return
+  }
+  if (unavailableSelectedIds.value.length > 0) {
+    activeTab.value = 'stickers'
+    ElMessage.warning('请先移除不可用的原选择')
     return
   }
   saving.value = true
@@ -693,6 +886,115 @@ onMounted(loadRoutes)
   gap: 8px 18px;
 }
 
+.sticker-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 14px;
+}
+
+.sticker-picker-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #374151;
+  font-size: 14px;
+}
+
+.sticker-picker-heading span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.route-sticker-area {
+  min-height: 180px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.route-sticker-area.disabled {
+  opacity: .62;
+}
+
+.route-sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.route-sticker-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  text-align: left;
+  cursor: pointer;
+}
+
+.route-sticker-card:hover,
+.route-sticker-card.selected {
+  border-color: #60a5fa;
+  background: #eff6ff;
+}
+
+.route-sticker-card:disabled {
+  cursor: not-allowed;
+}
+
+.route-sticker-preview {
+  width: 72px;
+  height: 72px;
+}
+
+.route-sticker-preview :deep(.sticker-preview) {
+  min-height: 72px;
+}
+
+.route-sticker-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.route-sticker-copy strong,
+.route-sticker-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-sticker-copy strong {
+  font-size: 13px;
+}
+
+.route-sticker-copy span {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.unavailable-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  margin-top: 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #7f1d1d;
+  font-size: 13px;
+}
+
 @media (max-width: 760px) {
   .interaction-page {
     width: calc(100vw - 28px);
@@ -710,6 +1012,11 @@ onMounted(loadRoutes)
   .three-columns,
   .binding-row {
     grid-template-columns: 1fr;
+  }
+
+  .sticker-picker-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .route-card {

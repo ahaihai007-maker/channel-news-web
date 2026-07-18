@@ -44,11 +44,52 @@ const requestModeLabels = {
   OPERATIONAL_DETAIL: '操作细节'
 }
 
+const replyTypeLabels = {
+  TEXT: '文字',
+  STICKER: '贴图',
+  TEXT_AND_STICKER: '文字 + 贴图'
+}
+
+const stickerStatusLabels = {
+  NOT_REQUESTED: '未请求贴图',
+  SUCCESS: '贴图已发送',
+  FALLBACK_TEXT: '已回退文字',
+  FAILED: '贴图发送失败',
+  PLANNED: '等待发送'
+}
+
+const stickerReasonLabels = {
+  INFORMATION_REQUIRED: '信息型请求，强制使用文字',
+  EXPLICIT_STICKER_REQUEST: '用户明确要求贴图',
+  REACTION_ONLY: '仅需简短反应',
+  CONTENT_PLUS_REACTION: '文字回答后补充贴图',
+  NO_MATCH: '没有语义匹配的贴图',
+  STICKER_NOT_ALLOWED: '当前规则不允许贴图',
+  SELECTOR_FALLBACK: '选择器异常，已回退文字',
+  COOLDOWN_ACTIVE: '同一群组仍在贴图冷却期'
+}
+
 function policyState(row) {
   if (row.repairSucceeded) return '已修复'
   if (row.repairAttempted) return '已降级'
   if (row.policyViolationCodes?.length) return '命中规则'
   return '通过'
+}
+
+function replyState(row) {
+  const replyType = replyTypeLabels[row.replyType] || row.replyType || '文字'
+  if (row.replyType === 'TEXT') return `${replyType} · ${row.replyMessageId ? '已记录' : '未记录'}`
+  return `${replyType} · ${stickerStatusLabels[row.stickerSendStatus] || row.stickerSendStatus || '状态未知'}`
+}
+
+function replyDetail(row) {
+  return [
+    row.stickerDecisionReason
+      ? `决策：${stickerReasonLabels[row.stickerDecisionReason] || row.stickerDecisionReason}`
+      : '',
+    row.selectedStickerId ? `贴图 ID：${row.selectedStickerId}` : '',
+    row.stickerErrorSummary ? `错误：${row.stickerErrorSummary}` : ''
+  ].filter(Boolean).join('\n') || '未使用贴图'
 }
 
 function updateFilter(key, value) {
@@ -141,8 +182,12 @@ function formatTime(value) {
       <el-table-column label="延迟" width="92" align="right">
         <template #default="{ row }"><span class="numeric">{{ formatNumber(row.latencyMs) }}<small v-if="row.latencyMs !== null"> ms</small></span></template>
       </el-table-column>
-      <el-table-column label="回复" width="88" align="center">
-        <template #default="{ row }">{{ row.replyMessageId ? '已记录' : '—' }}</template>
+      <el-table-column label="回复形式" width="180">
+        <template #default="{ row }">
+          <el-tooltip :content="replyDetail(row)">
+            <span>{{ replyState(row) }}</span>
+          </el-tooltip>
+        </template>
       </el-table-column>
       <el-table-column label="错误摘要" min-width="220" show-overflow-tooltip>
         <template #default="{ row }"><span class="error-summary">{{ row.errorSummary || '—' }}</span></template>
