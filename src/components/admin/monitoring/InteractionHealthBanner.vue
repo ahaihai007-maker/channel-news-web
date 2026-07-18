@@ -43,25 +43,25 @@ function formatTime(value) {
 <template>
   <section class="interaction-health" data-testid="interaction-health-banner">
     <div class="interaction-health__block">
-      <span class="interaction-health__label">BOT HEARTBEAT</span>
+      <span class="interaction-health__label">机器人心跳</span>
       <strong :class="`is-${service?.status || 'unknown'}`">
         <i />{{ serviceLabels[service?.status] || serviceLabels.unknown }}
       </strong>
       <small>最后心跳 {{ formatTime(service?.lastSeenAt) }}</small>
     </div>
     <div class="interaction-health__block">
-      <span class="interaction-health__label">EXECUTION WINDOW</span>
+      <span class="interaction-health__label">执行状态</span>
       <strong :class="`is-${executionStatus}`">
         <i />{{ executionLabels[executionStatus] }}
       </strong>
       <small>最近执行 {{ formatTime(summary?.lastRunAt) }}</small>
     </div>
     <div class="interaction-health__signals">
-      <span><b>{{ summary?.runningRuns ?? 0 }}</b> RUNNING</span>
+      <span><b>{{ summary?.runningRuns ?? 0 }}</b>运行中</span>
       <span :class="{ 'is-danger': (summary?.stuckRuns || 0) > 0 }">
-        <b>{{ summary?.stuckRuns ?? 0 }}</b> STUCK &gt; 5M
+        <b>{{ summary?.stuckRuns ?? 0 }}</b>超过 5 分钟
       </span>
-      <span><b>{{ summary?.failedRuns ?? 0 }}</b> FAILED</span>
+      <span><b>{{ summary?.failedRuns ?? 0 }}</b>失败</span>
     </div>
     <div v-if="loading" class="interaction-health__scan" />
   </section>
@@ -72,25 +72,27 @@ function formatTime(value) {
   position: relative;
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
-  border: 1px solid #263540;
-  border-top: 0;
-  background: #0d161d;
+  margin-block-start: var(--monitor-space-sm);
+  border: var(--monitor-rule);
+  border-radius: var(--monitor-radius-control);
+  background: var(--monitor-color-surface);
   overflow: hidden;
 }
 
 .interaction-health__block,
 .interaction-health__signals {
-  min-height: 82px;
-  padding: 15px 18px;
-  border-right: 1px solid #263540;
+  min-height: 5.125rem;
+  padding: var(--monitor-space-sm) var(--monitor-space-md);
+  border-right: var(--monitor-rule);
   box-sizing: border-box;
 }
 
 .interaction-health__label {
   display: block;
-  color: #526977;
-  font: 600 9px/1 ui-monospace, Consolas, monospace;
-  letter-spacing: 0.14em;
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
+  font-weight: 600;
+  line-height: 1;
 }
 
 .interaction-health strong {
@@ -98,60 +100,64 @@ function formatTime(value) {
   align-items: center;
   gap: 8px;
   margin: 8px 0 7px;
-  color: #dce8ef;
-  font-size: 13px;
+  color: var(--monitor-color-ink);
+  font-size: var(--monitor-text-sm);
 }
 
 .interaction-health strong i {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #32c787;
+  background: var(--monitor-color-success);
 }
 
 .interaction-health strong.is-delayed i,
 .interaction-health strong.is-degraded i,
 .interaction-health strong.is-running i {
-  background: #efb849;
+  background: var(--monitor-color-warning);
 }
 
 .interaction-health strong.is-offline i,
 .interaction-health strong.is-failed i {
-  background: #f06464;
+  background: var(--monitor-color-danger);
 }
 
 .interaction-health strong.is-unknown i,
 .interaction-health strong.is-no_activity i {
-  background: #718391;
+  background: var(--monitor-color-faint);
 }
 
 .interaction-health small {
-  color: #617584;
-  font: 500 10px/1 ui-monospace, Consolas, monospace;
+  color: var(--monitor-color-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .interaction-health__signals {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--monitor-space-lg);
   border-right: 0;
 }
 
 .interaction-health__signals span {
-  color: #617584;
-  font: 600 9px/1.4 ui-monospace, Consolas, monospace;
+  color: var(--monitor-color-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
   white-space: nowrap;
 }
 
 .interaction-health__signals b {
   display: block;
   margin-bottom: 4px;
-  color: #dce8ef;
-  font-size: 17px;
+  color: var(--monitor-color-ink);
+  font-family: var(--monitor-font-display);
+  font-size: var(--monitor-text-base);
 }
 
 .interaction-health__signals .is-danger b {
-  color: #f06464;
+  color: var(--monitor-color-danger);
 }
 
 .interaction-health__scan {
@@ -159,14 +165,15 @@ function formatTime(value) {
   right: 0;
   bottom: 0;
   left: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #2ac6a8, transparent);
-  animation: health-scan 1.2s linear infinite;
+  height: 2px;
+  background: var(--monitor-color-accent);
+  transform-origin: left;
+  animation: health-scan var(--monitor-dur-long) var(--monitor-ease-in-out) infinite alternate;
 }
 
 @keyframes health-scan {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(100%); }
+  from { transform: scaleX(0.15); opacity: 0.35; }
+  to { transform: scaleX(1); opacity: 1; }
 }
 
 @media (max-width: 980px) {
@@ -176,7 +183,7 @@ function formatTime(value) {
 
   .interaction-health__signals {
     grid-column: span 2;
-    border-top: 1px solid #263540;
+    border-top: var(--monitor-rule);
   }
 }
 
@@ -189,7 +196,7 @@ function formatTime(value) {
   .interaction-health__signals {
     grid-column: span 1;
     border-right: 0;
-    border-bottom: 1px solid #263540;
+    border-bottom: var(--monitor-rule);
   }
 
   .interaction-health__signals {

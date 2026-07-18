@@ -31,6 +31,26 @@ const triggerLabels = {
   command: '命令'
 }
 
+const requestModeLabels = {
+  CASUAL_CHAT: '自然聊天',
+  EDITORIAL_SUMMARY: '新闻摘要',
+  EDITORIAL_ANALYSIS: '新闻分析',
+  FACT_CHECK: '事实核查',
+  SOURCE_REQUEST: '来源查询',
+  OPINION: '观点讨论',
+  PERSONAL_ADVICE: '明确建议',
+  FORMAT_REQUEST: '格式调整',
+  FOLLOW_UP: '继续追问',
+  OPERATIONAL_DETAIL: '操作细节'
+}
+
+function policyState(row) {
+  if (row.repairSucceeded) return '已修复'
+  if (row.repairAttempted) return '已降级'
+  if (row.policyViolationCodes?.length) return '命中规则'
+  return '通过'
+}
+
 function updateFilter(key, value) {
   emit('update:filters', { ...props.filters, [key]: value })
 }
@@ -56,10 +76,9 @@ function formatTime(value) {
   <section class="interaction-run-table telemetry-panel" data-testid="interaction-run-table">
     <div class="telemetry-panel__header">
       <div>
-        <span class="telemetry-panel__kicker">RUN LEDGER</span>
         <h2>最近执行记录</h2>
       </div>
-      <span class="telemetry-panel__count">{{ total }} RUNS</span>
+      <span class="telemetry-panel__meta">{{ total }} 条</span>
     </div>
     <div class="interaction-run-table__filters">
       <el-select :model-value="filters.status" placeholder="全部状态" clearable @update:model-value="updateFilter('status', $event)">
@@ -102,6 +121,16 @@ function formatTime(value) {
       <el-table-column label="模式" width="98">
         <template #default="{ row }">{{ modeLabels[row.mode] || row.mode }}</template>
       </el-table-column>
+      <el-table-column label="请求模式" width="108">
+        <template #default="{ row }">{{ requestModeLabels[row.requestMode] || row.requestMode || '旧记录' }}</template>
+      </el-table-column>
+      <el-table-column label="策略" width="92">
+        <template #default="{ row }">
+          <el-tooltip :content="row.policyViolationCodes?.join(', ') || '未检测到违规'">
+            <span>{{ policyState(row) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
       <el-table-column label="触发" width="76">
         <template #default="{ row }">{{ triggerLabels[row.triggerType] || row.triggerType }}</template>
       </el-table-column>
@@ -133,22 +162,15 @@ function formatTime(value) {
 </template>
 
 <style scoped>
-.telemetry-panel { border: 1px solid #263540; background: #101a22; }
-.telemetry-panel__header { display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 0 18px; border-bottom: 1px solid #263540; }
-.telemetry-panel__kicker,
-.telemetry-panel__count { color: #617584; font: 600 9px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.13em; }
-.telemetry-panel h2 { margin: 5px 0 0; color: #dce8ef; font-size: 15px; }
-.interaction-run-table__filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #263540; background: #0d161d; }
-.interaction-run-table__filters :deep(.el-select) { width: 150px; }
-.interaction-run-table__filters :deep(.el-input__wrapper) { background: #0b1117; box-shadow: 0 0 0 1px #30424f inset; }
-.telemetry-table { --el-table-bg-color: #101a22; --el-table-tr-bg-color: #101a22; --el-table-header-bg-color: #0d161d; --el-table-row-hover-bg-color: #142631; --el-table-border-color: #263540; --el-table-text-color: #a9bac6; --el-table-header-text-color: #718391; width: 100%; }
-.numeric { color: #c8d5dd; font: 600 11px/1 ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
-.numeric small { color: #617584; font-size: 9px; }
-.error-summary { color: #b88787; }
+.interaction-run-table__filters { display: flex; flex-wrap: wrap; gap: var(--monitor-space-xs); padding: var(--monitor-space-sm) var(--monitor-space-md); border-bottom: var(--monitor-rule); background: var(--monitor-color-surface-subtle); }
+.interaction-run-table__filters :deep(.el-select) { width: 9.375rem; }
+.numeric { color: var(--monitor-color-ink-soft); font-size: var(--monitor-text-xs); font-weight: 600; font-variant-numeric: tabular-nums; }
+.numeric small { color: var(--monitor-color-muted); font-size: 0.6875rem; }
+.error-summary { color: var(--monitor-color-danger); }
 .interaction-run-table :deep(.el-tag) { border: 0; }
-.interaction-run-table :deep(.el-tag.is-success) { background: #1b6b4d; }
-.interaction-run-table :deep(.el-tag.is-failed) { background: #7c3030; }
-.interaction-run-table :deep(.el-tag.is-running) { background: #72581b; }
-.interaction-run-table__pagination { display: flex; justify-content: flex-end; padding: 14px 16px; border-top: 1px solid #263540; }
+.interaction-run-table :deep(.el-tag.is-success) { color: var(--monitor-color-success); background: var(--monitor-color-success-soft); }
+.interaction-run-table :deep(.el-tag.is-failed) { color: var(--monitor-color-danger); background: var(--monitor-color-danger-soft); }
+.interaction-run-table :deep(.el-tag.is-running) { color: var(--monitor-color-warning); background: var(--monitor-color-warning-soft); }
+.interaction-run-table__pagination { display: flex; justify-content: flex-end; padding: var(--monitor-space-sm) var(--monitor-space-md); border-top: var(--monitor-rule); }
 @media (max-width: 640px) { .interaction-run-table__filters :deep(.el-select) { width: calc(50% - 4px); } }
 </style>

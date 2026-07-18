@@ -7,6 +7,8 @@ import InteractionMonitoringPanel from '@/components/admin/monitoring/Interactio
 import MonitorViewTabs from '@/components/admin/monitoring/MonitorViewTabs.vue'
 import { useMonitoringPolling } from '@/composables/useMonitoringPolling.js'
 import { useMonitoringStore } from '@/stores/monitoring.js'
+import '../../../tokens.css'
+import '@/components/admin/monitoring/monitoring-shell.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -219,7 +221,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="monitor-dashboard" data-testid="monitor-dashboard">
+  <div
+    class="monitor-dashboard"
+    :class="`is-${activeView}`"
+    data-testid="monitor-dashboard"
+  >
     <MonitorViewTabs :model-value="activeView" @update:model-value="updateView" />
 
     <ChannelMonitoringPanel
@@ -270,35 +276,19 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench · theme: Cobalt · designed-as-app */
 .monitor-dashboard {
-  --monitor-bg: #0b1117;
   width: 100%;
-  min-height: calc(100vh - 108px);
-  padding: 14px;
-  border: 1px solid #1d2a33;
-  border-radius: 10px;
-  color: #a9bac6;
-  background:
-    linear-gradient(rgba(42, 183, 202, 0.025) 1px, transparent 1px) 0 0 / 32px 32px,
-    linear-gradient(90deg, rgba(42, 183, 202, 0.025) 1px, transparent 1px) 0 0 / 32px 32px,
-    var(--monitor-bg);
-  box-sizing: border-box;
-  font-family: 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
+  min-height: calc(100dvh - 6.75rem);
+  overflow-x: clip;
+  color: var(--monitor-color-ink-soft);
+  background: transparent;
+  font-family: var(--monitor-font-body);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .monitor-dashboard {
-    padding: 8px;
-    border-radius: 8px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .monitor-dashboard *,
-  .monitor-dashboard *::before,
-  .monitor-dashboard *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    min-height: auto;
   }
 }
 </style>

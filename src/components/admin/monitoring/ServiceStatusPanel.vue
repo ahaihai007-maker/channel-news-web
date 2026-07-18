@@ -30,10 +30,9 @@ const formattedServices = computed(() => props.services.map((service) => ({
   <section class="status-panel telemetry-panel">
     <div class="telemetry-panel__header">
       <div>
-        <span class="telemetry-panel__kicker">RUNTIME</span>
-        <h2>服务状态矩阵</h2>
+        <h2>服务状态</h2>
       </div>
-      <span class="telemetry-panel__count">{{ services.length }} SERVICES</span>
+      <span class="telemetry-panel__meta">{{ services.length }} 个服务</span>
     </div>
 
     <div class="status-panel__grid">
@@ -53,7 +52,7 @@ const formattedServices = computed(() => props.services.map((service) => ({
     </div>
 
     <div v-if="incidents.length" class="status-panel__incidents">
-      <div class="status-panel__incidents-title">ACTIVE INCIDENTS</div>
+      <div class="status-panel__incidents-title">当前异常</div>
       <article v-for="incident in incidents.slice(0, 4)" :key="incident.key">
         <span :class="`is-${incident.severity}`">{{ incident.severity }}</span>
         <div>
@@ -66,59 +65,32 @@ const formattedServices = computed(() => props.services.map((service) => ({
 </template>
 
 <style scoped>
-.telemetry-panel {
-  border: 1px solid #263540;
-  background: #101a22;
-}
-
-.telemetry-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 64px;
-  padding: 0 18px;
-  border-bottom: 1px solid #263540;
-}
-
-.telemetry-panel__kicker,
-.telemetry-panel__count,
 .status-panel__incidents-title {
-  color: #617584;
-  font: 600 9px/1 ui-monospace, Consolas, monospace;
-  letter-spacing: 0.13em;
-}
-
-.telemetry-panel h2 {
-  margin: 5px 0 0;
-  color: #dce8ef;
-  font-size: 15px;
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
+  font-weight: 700;
 }
 
 .status-panel__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .status-panel__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 60px;
-  padding: 10px 14px;
-  border-right: 1px solid #263540;
-  border-bottom: 1px solid #263540;
-  box-sizing: border-box;
+  gap: var(--monitor-space-xs);
+  min-height: 3.75rem;
+  padding: var(--monitor-space-sm) var(--monitor-space-md);
+  border-block-end: var(--monitor-rule);
 }
 
-.status-panel__item:nth-child(2n) { border-right: 0; }
-
 .status-panel__indicator {
-  width: 8px;
-  height: 8px;
-  border: 2px solid #0d161d;
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
   border-radius: 50%;
-  background: #32c787;
-  box-shadow: 0 0 0 1px #32c787;
+  background: var(--monitor-color-success);
 }
 
 .status-panel__copy {
@@ -135,55 +107,58 @@ const formattedServices = computed(() => props.services.map((service) => ({
 }
 
 .status-panel__copy strong {
-  color: #c8d5dd;
-  font-size: 12px;
+  color: var(--monitor-color-ink);
+  font-size: var(--monitor-text-xs);
 }
 
 .status-panel__copy span {
-  margin-top: 4px;
-  color: #657987;
-  font-size: 10px;
+  margin-block-start: var(--monitor-space-2xs);
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
 }
 
 .status-panel__item :deep(.el-tag) {
   border: 0;
-  background: #1b6b4d;
+  color: var(--monitor-color-success);
+  background: var(--monitor-color-success-soft);
 }
 
-.status-panel__item.is-delayed .status-panel__indicator { background: #efb849; box-shadow: 0 0 0 1px #efb849; }
+.status-panel__item.is-delayed .status-panel__indicator { background: var(--monitor-color-warning); }
 .status-panel__item.is-offline .status-panel__indicator,
-.status-panel__item.is-failed .status-panel__indicator { background: #f06464; box-shadow: 0 0 0 1px #f06464; }
-.status-panel__item.is-unknown .status-panel__indicator { background: #718391; box-shadow: 0 0 0 1px #718391; }
-.status-panel__item.is-delayed :deep(.el-tag) { background: #72581b; }
+.status-panel__item.is-failed .status-panel__indicator { background: var(--monitor-color-danger); }
+.status-panel__item.is-unknown .status-panel__indicator { background: var(--monitor-color-faint); }
+.status-panel__item.is-delayed :deep(.el-tag) { color: var(--monitor-color-warning); background: var(--monitor-color-warning-soft); }
 .status-panel__item.is-offline :deep(.el-tag),
-.status-panel__item.is-failed :deep(.el-tag) { background: #7c3030; }
-.status-panel__item.is-unknown :deep(.el-tag) { background: #46545e; }
+.status-panel__item.is-failed :deep(.el-tag) { color: var(--monitor-color-danger); background: var(--monitor-color-danger-soft); }
+.status-panel__item.is-unknown :deep(.el-tag) { color: var(--monitor-color-muted); background: var(--monitor-color-surface-subtle); }
 
 .status-panel__incidents {
-  padding: 14px;
+  padding: var(--monitor-space-md);
 }
 
-.status-panel__incidents-title { margin-bottom: 8px; }
+.status-panel__incidents-title { margin-block-end: var(--monitor-space-xs); }
 
 .status-panel__incidents article {
   display: flex;
-  gap: 10px;
-  padding: 9px 0;
-  border-top: 1px solid #22313b;
+  gap: var(--monitor-space-xs);
+  padding: var(--monitor-space-xs) 0;
+  border-block-start: var(--monitor-rule);
 }
 
 .status-panel__incidents article > span {
-  color: #efb849;
-  font: 700 9px/1.3 ui-monospace, Consolas, monospace;
+  color: var(--monitor-color-warning);
+  font-size: var(--monitor-text-xs);
+  font-weight: 700;
+  line-height: 1.3;
   text-transform: uppercase;
 }
 
-.status-panel__incidents article > span.is-critical { color: #f06464; }
-.status-panel__incidents strong { color: #c8d5dd; font-size: 11px; }
-.status-panel__incidents p { margin: 3px 0 0; color: #718391; font-size: 10px; line-height: 1.4; }
+.status-panel__incidents article > span.is-critical { color: var(--monitor-color-danger); }
+.status-panel__incidents strong { color: var(--monitor-color-ink); font-size: var(--monitor-text-xs); }
+.status-panel__incidents p { margin: var(--monitor-space-2xs) 0 0; color: var(--monitor-color-muted); font-size: var(--monitor-text-xs); line-height: 1.4; }
 
-@media (max-width: 560px) {
-  .status-panel__grid { grid-template-columns: 1fr; }
-  .status-panel__item { border-right: 0; }
+@media (min-width: 90rem) {
+  .status-panel__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .status-panel__item:nth-child(odd) { border-inline-end: var(--monitor-rule); }
 }
 </style>

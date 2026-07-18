@@ -41,7 +41,7 @@ describe('ChannelMonitoringPanel', () => {
     })
 
     expect(wrapper.text()).toContain('FastAPI')
-    expect(wrapper.text()).toContain('1 SERVICES')
+    expect(wrapper.text()).toContain('1 个服务')
     expect(wrapper.text()).toContain('运行状态正常')
     expect(wrapper.text()).not.toContain('Telegram 流量采集')
     expect(wrapper.text()).not.toContain('存在严重异常')

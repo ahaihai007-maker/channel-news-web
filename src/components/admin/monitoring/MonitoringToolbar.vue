@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Refresh, Setting } from '@element-plus/icons-vue'
+import { Refresh } from '@element-plus/icons-vue'
 
 const props = defineProps({
   filters: { type: Object, required: true },
@@ -40,10 +40,8 @@ function updateFilter(key, value) {
 <template>
   <header class="monitor-toolbar">
     <div class="monitor-toolbar__identity">
-      <span class="monitor-toolbar__eyebrow">TELEMETRY / CHANNEL OPS</span>
       <div class="monitor-toolbar__title-row">
         <h1 class="monitor-toolbar__title">频道运行台</h1>
-        <span class="monitor-toolbar__live"><i /> LIVE</span>
       </div>
       <p class="monitor-toolbar__description">频道流量、内容流转、Token 与自动化状态</p>
     </div>
@@ -76,15 +74,17 @@ function updateFilter(key, value) {
         <el-radio-button :value="30">30D</el-radio-button>
       </el-radio-group>
 
-      <el-tooltip content="页面可见时每 30 秒刷新" placement="bottom">
+      <label class="monitor-toolbar__auto-refresh">
+        <span>自动刷新</span>
         <el-switch
           :model-value="autoRefresh"
           inline-prompt
-          active-text="AUTO"
-          inactive-text="MAN"
+          active-text="开"
+          inactive-text="关"
+          aria-label="页面可见时每 30 秒自动刷新"
           @update:model-value="emit('update:autoRefresh', $event)"
         />
-      </el-tooltip>
+      </label>
 
       <el-button
         class="monitor-toolbar__refresh"
@@ -94,10 +94,7 @@ function updateFilter(key, value) {
       >
         刷新
       </el-button>
-      <el-tooltip content="筛选条件会保存在当前网址" placement="bottom">
-        <el-icon class="monitor-toolbar__hint"><Setting /></el-icon>
-      </el-tooltip>
-      <span class="monitor-toolbar__updated">更新 {{ updatedLabel }}</span>
+      <span class="monitor-toolbar__updated" aria-live="polite">更新于 {{ updatedLabel }}</span>
     </div>
   </header>
 </template>
@@ -105,57 +102,40 @@ function updateFilter(key, value) {
 <style scoped>
 .monitor-toolbar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 22px 24px;
-  border: 1px solid #263540;
-  background:
-    linear-gradient(90deg, rgba(85, 166, 255, 0.08) 1px, transparent 1px) 0 0 / 48px 48px,
-    #101a22;
-}
-
-.monitor-toolbar__eyebrow {
-  display: block;
-  margin-bottom: 8px;
-  color: #55a6ff;
-  font: 600 10px/1 ui-monospace, Consolas, monospace;
-  letter-spacing: 0.16em;
+  gap: var(--monitor-space-lg);
+  padding: var(--monitor-space-lg);
+  border: var(--monitor-rule);
+  border-radius: var(--monitor-radius-panel);
+  color: var(--monitor-color-ink-soft);
+  background: var(--monitor-color-surface);
 }
 
 .monitor-toolbar__title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--monitor-space-sm);
 }
 
 .monitor-toolbar__title {
   margin: 0;
-  color: #edf7ff;
-  font: 700 clamp(24px, 2.4vw, 36px)/1.05 'Microsoft YaHei UI', sans-serif;
-  letter-spacing: -0.04em;
-}
-
-.monitor-toolbar__live {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #32c787;
-  font: 700 10px/1 ui-monospace, Consolas, monospace;
-}
-
-.monitor-toolbar__live i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #32c787;
-  box-shadow: 0 0 0 4px rgba(50, 199, 135, 0.12);
+  color: var(--monitor-color-ink);
+  font-family: var(--monitor-font-display);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
 
 .monitor-toolbar__description {
-  margin: 8px 0 0;
-  color: #8294a1;
-  font-size: 13px;
+  max-width: 42rem;
+  margin: var(--monitor-space-xs) 0 0;
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-sm);
+  line-height: 1.5;
 }
 
 .monitor-toolbar__controls {
@@ -163,43 +143,36 @@ function updateFilter(key, value) {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--monitor-space-xs);
 }
 
 .monitor-toolbar__channel {
-  width: 180px;
+  width: 11.25rem;
 }
 
 .monitor-toolbar__updated {
-  color: #718391;
-  font: 500 11px/1 ui-monospace, Consolas, monospace;
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.monitor-toolbar__hint {
-  color: #627684;
-}
-
-.monitor-toolbar :deep(.el-input__wrapper),
-.monitor-toolbar :deep(.el-radio-button__inner) {
-  border-color: #30424f;
-  background: #0b1117;
-  color: #a9bac6;
-  box-shadow: none;
-}
-
-.monitor-toolbar :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-  border-color: #55a6ff;
-  background: #17334a;
-  color: #e6f3ff;
+.monitor-toolbar__auto-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--monitor-space-xs);
+  min-height: 2.75rem;
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
+  white-space: nowrap;
 }
 
 .monitor-toolbar__refresh {
-  border-color: #35546b;
-  background: #132839;
-  color: #cfe9ff;
+  min-width: 5.25rem;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 61.25rem) {
   .monitor-toolbar {
     align-items: flex-start;
     flex-direction: column;
@@ -210,18 +183,33 @@ function updateFilter(key, value) {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 40rem) {
   .monitor-toolbar {
-    padding: 18px;
+    padding: var(--monitor-space-md);
   }
 
   .monitor-toolbar__channel {
     width: 100%;
   }
 
-  .monitor-toolbar__updated,
-  .monitor-toolbar__hint {
-    display: none;
+  .monitor-toolbar__controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+
+  .monitor-toolbar__channel,
+  .monitor-toolbar__range,
+  .monitor-toolbar__updated {
+    grid-column: 1 / -1;
+  }
+
+  .monitor-toolbar__range :deep(.el-radio-button) {
+    flex: 1;
+  }
+
+  .monitor-toolbar__range :deep(.el-radio-button__inner) {
+    width: 100%;
   }
 }
 </style>

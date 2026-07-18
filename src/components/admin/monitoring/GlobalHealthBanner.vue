@@ -24,13 +24,17 @@ const health = computed(() => {
 </script>
 
 <template>
-  <section class="health-banner" :class="`is-${health.status}`">
-    <div class="health-banner__signal"><i /><i /><i /></div>
-    <div>
-      <span class="health-banner__kicker">GLOBAL STATUS</span>
+  <section
+    class="health-banner"
+    :class="`is-${health.status}`"
+    role="status"
+    aria-live="polite"
+  >
+    <i class="health-banner__signal" aria-hidden="true" />
+    <div class="health-banner__copy">
       <strong>{{ health.title }}</strong>
+      <span class="health-banner__detail">{{ health.detail }}</span>
     </div>
-    <span class="health-banner__detail">{{ health.detail }}</span>
   </section>
 </template>
 
@@ -38,57 +42,52 @@ const health = computed(() => {
 .health-banner {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 56px;
-  padding: 0 18px;
-  border: 1px solid #263540;
-  border-top: 0;
-  color: #dce8ef;
-  background: #0d161d;
+  gap: var(--monitor-space-sm);
+  min-height: 3.5rem;
+  margin-block-start: var(--monitor-space-sm);
+  padding: var(--monitor-space-sm) var(--monitor-space-md);
+  border: var(--monitor-rule);
+  border-radius: var(--monitor-radius-control);
+  color: var(--monitor-color-ink-soft);
+  background: var(--monitor-color-success-soft);
 }
 
 .health-banner__signal {
-  display: flex;
-  gap: 3px;
-  align-items: flex-end;
-  width: 24px;
-  height: 18px;
-}
-
-.health-banner__signal i {
-  width: 4px;
-  background: #32c787;
-}
-
-.health-banner__signal i:nth-child(1) { height: 7px; }
-.health-banner__signal i:nth-child(2) { height: 12px; }
-.health-banner__signal i:nth-child(3) { height: 18px; }
-
-.health-banner__kicker {
-  display: block;
-  margin-bottom: 2px;
-  color: #617584;
-  font: 600 9px/1 ui-monospace, Consolas, monospace;
-  letter-spacing: 0.14em;
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--monitor-color-success);
 }
 
 .health-banner strong {
-  font-size: 13px;
+  color: var(--monitor-color-ink);
+  font-size: var(--monitor-text-sm);
+  font-weight: 700;
 }
 
 .health-banner__detail {
-  margin-left: auto;
-  color: #8294a1;
-  font-size: 12px;
+  margin-inline-start: var(--monitor-space-xs);
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
 }
 
-.health-banner.is-critical .health-banner__signal i { background: #f06464; }
-.health-banner.is-warning .health-banner__signal i { background: #efb849; }
-.health-banner.is-unknown .health-banner__signal i { background: #718391; }
+.health-banner.is-critical { background: var(--monitor-color-danger-soft); }
+.health-banner.is-warning { background: var(--monitor-color-warning-soft); }
+.health-banner.is-unknown { background: var(--monitor-color-surface-subtle); }
+.health-banner.is-critical .health-banner__signal { background: var(--monitor-color-danger); }
+.health-banner.is-warning .health-banner__signal { background: var(--monitor-color-warning); }
+.health-banner.is-unknown .health-banner__signal { background: var(--monitor-color-faint); }
 
-@media (max-width: 560px) {
+@media (max-width: 35rem) {
+  .health-banner__copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--monitor-space-2xs);
+  }
+
   .health-banner__detail {
-    display: none;
+    margin-inline-start: 0;
   }
 }
 </style>

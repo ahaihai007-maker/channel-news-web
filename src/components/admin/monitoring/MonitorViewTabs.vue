@@ -15,7 +15,6 @@ const emit = defineEmits(['update:modelValue'])
       data-testid="channel-monitor-tab"
       @click="emit('update:modelValue', 'channel')"
     >
-      <span>01</span>
       频道流量
     </button>
     <button
@@ -25,92 +24,75 @@ const emit = defineEmits(['update:modelValue'])
       data-testid="interaction-monitor-tab"
       @click="emit('update:modelValue', 'interaction')"
     >
-      <span>02</span>
       AI 互动
     </button>
-    <div class="monitor-tabs__line" />
   </nav>
 </template>
 
 <style scoped>
 .monitor-tabs {
-  position: relative;
   display: flex;
-  align-items: stretch;
-  min-height: 48px;
-  margin-bottom: 10px;
-  border: 1px solid #263540;
-  background: #0d161d;
+  align-items: center;
+  gap: var(--monitor-space-lg);
+  min-height: 3rem;
+  margin-block-end: var(--monitor-space-lg);
+  border-bottom: var(--monitor-rule);
 }
 
 .monitor-tabs__item {
   position: relative;
-  min-width: 168px;
-  padding: 0 24px;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0;
   border: 0;
-  border-right: 1px solid #263540;
-  color: #718391;
+  color: var(--monitor-color-muted);
   background: transparent;
-  font: 650 13px/1 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
+  font-family: var(--monitor-font-body);
+  font-size: var(--monitor-text-sm);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
-  transition: color 160ms ease, background-color 160ms ease;
-}
-
-.monitor-tabs__item span {
-  margin-right: 8px;
-  color: #425868;
-  font: 600 9px/1 ui-monospace, Consolas, monospace;
+  transition: color var(--monitor-dur-short) var(--monitor-ease-out);
 }
 
 .monitor-tabs__item::after {
   position: absolute;
   right: 0;
-  bottom: -1px;
+  bottom: -0.0625rem;
   left: 0;
-  height: 2px;
-  background: #55a6ff;
+  height: 0.125rem;
+  background: var(--monitor-color-accent);
   content: '';
   opacity: 0;
 }
 
-.monitor-tabs__item:hover {
-  color: #c8d5dd;
-  background: #101d26;
-}
-
 .monitor-tabs__item.is-active {
-  color: #edf7ff;
-  background: #13232e;
+  color: var(--monitor-color-ink);
 }
 
-.monitor-tabs__item.is-active span {
-  color: #55a6ff;
+.monitor-tabs__item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .monitor-tabs__item.is-active::after {
   opacity: 1;
 }
 
-.monitor-tabs__line {
-  flex: 1;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent 23px,
-      rgba(85, 166, 255, 0.07) 24px
-    );
+@media (hover: hover) and (pointer: fine) {
+  .monitor-tabs__item:hover {
+    color: var(--monitor-color-accent-strong);
+  }
 }
 
-@media (max-width: 560px) {
-  .monitor-tabs__item {
-    min-width: 0;
-    flex: 1;
-    padding: 0 12px;
+@media (max-width: 35rem) {
+  .monitor-tabs {
+    gap: var(--monitor-space-md);
   }
 
-  .monitor-tabs__line {
-    display: none;
+  .monitor-tabs__item {
+    flex: 1;
   }
 }
 </style>

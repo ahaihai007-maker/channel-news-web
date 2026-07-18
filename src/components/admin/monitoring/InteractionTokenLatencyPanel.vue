@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import BaseTelemetryChart from './BaseTelemetryChart.vue'
+import { monitoringChartAnimationDuration, monitoringChartTheme as chartTheme } from './monitoringChartTheme.js'
 
 const props = defineProps({
   points: { type: Array, default: () => [] },
@@ -17,36 +18,37 @@ function formatBucket(value) {
 }
 
 const option = computed(() => ({
-  animationDuration: 420,
+  animationDuration: monitoringChartAnimationDuration(),
+  backgroundColor: 'transparent',
   aria: { enabled: true, description: 'AI 互动 Token 与模型延迟趋势' },
   grid: { left: 56, right: 58, top: 48, bottom: 42 },
   tooltip: {
     trigger: 'axis',
-    backgroundColor: '#101a22',
-    borderColor: '#30424f',
-    textStyle: { color: '#dce8ef' }
+    backgroundColor: chartTheme.surface,
+    borderColor: chartTheme.border,
+    textStyle: { color: chartTheme.ink }
   },
-  legend: { top: 4, right: 8, textStyle: { color: '#8294a1', fontSize: 10 } },
+  legend: { top: 4, right: 8, textStyle: { color: chartTheme.muted, fontSize: 10 } },
   xAxis: {
     type: 'category',
     data: props.points.map((point) => formatBucket(point.timestamp)),
-    axisLine: { lineStyle: { color: '#30424f' } },
-    axisLabel: { color: '#718391', fontSize: 10 }
+    axisLine: { lineStyle: { color: chartTheme.border } },
+    axisLabel: { color: chartTheme.muted, fontSize: 10 }
   },
   yAxis: [
     {
       type: 'value',
       name: 'TOKEN',
-      nameTextStyle: { color: '#526977', fontSize: 9 },
-      splitLine: { lineStyle: { color: '#1f303b' } },
-      axisLabel: { color: '#718391', fontSize: 10 }
+      nameTextStyle: { color: chartTheme.muted, fontSize: 9 },
+      splitLine: { lineStyle: { color: chartTheme.grid } },
+      axisLabel: { color: chartTheme.muted, fontSize: 10 }
     },
     {
       type: 'value',
       name: 'MS',
-      nameTextStyle: { color: '#526977', fontSize: 9 },
+      nameTextStyle: { color: chartTheme.muted, fontSize: 9 },
       splitLine: { show: false },
-      axisLabel: { color: '#718391', fontSize: 10 }
+      axisLabel: { color: chartTheme.muted, fontSize: 10 }
     }
   ],
   series: [
@@ -55,7 +57,7 @@ const option = computed(() => ({
       type: 'bar',
       stack: 'tokens',
       data: props.points.map((point) => point.promptTokens),
-      itemStyle: { color: '#55a6ff' },
+      itemStyle: { color: chartTheme.accent },
       barMaxWidth: 22
     },
     {
@@ -63,7 +65,7 @@ const option = computed(() => ({
       type: 'bar',
       stack: 'tokens',
       data: props.points.map((point) => point.completionTokens),
-      itemStyle: { color: '#a987ff' },
+      itemStyle: { color: chartTheme.secondary },
       barMaxWidth: 22
     },
     {
@@ -74,8 +76,8 @@ const option = computed(() => ({
       smooth: true,
       symbolSize: 4,
       data: props.points.map((point) => point.averageLatencyMs),
-      lineStyle: { color: '#2ac6a8', width: 2 },
-      itemStyle: { color: '#2ac6a8' }
+      lineStyle: { color: chartTheme.secondary, width: 2 },
+      itemStyle: { color: chartTheme.secondary }
     },
     {
       name: 'P95 延迟',
@@ -84,8 +86,8 @@ const option = computed(() => ({
       connectNulls: false,
       symbol: 'none',
       data: props.points.map((point) => point.p95LatencyMs),
-      lineStyle: { color: '#efb849', width: 1, type: 'dashed' },
-      itemStyle: { color: '#efb849' }
+      lineStyle: { color: chartTheme.warning, width: 1, type: 'dashed' },
+      itemStyle: { color: chartTheme.warning }
     }
   ]
 }))
@@ -95,10 +97,9 @@ const option = computed(() => ({
   <section class="token-latency telemetry-panel">
     <div class="telemetry-panel__header">
       <div>
-        <span class="telemetry-panel__kicker">OPENROUTER LOAD</span>
         <h2>Token 与延迟</h2>
       </div>
-      <span class="token-latency__note">TOKEN SOURCE: INTERACTION RUNS ONLY</span>
+      <span class="token-latency__note">仅统计互动运行记录</span>
     </div>
     <BaseTelemetryChart
       :option="option"
@@ -110,10 +111,6 @@ const option = computed(() => ({
 </template>
 
 <style scoped>
-.telemetry-panel { border: 1px solid #263540; background: #101a22; }
-.telemetry-panel__header { display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 0 18px; border-bottom: 1px solid #263540; }
-.telemetry-panel__kicker,
-.token-latency__note { color: #617584; font: 600 9px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.13em; }
-.telemetry-panel h2 { margin: 5px 0 0; color: #dce8ef; font-size: 15px; }
+.token-latency__note { color: var(--monitor-color-muted); font-size: var(--monitor-text-xs); font-weight: 500; }
 @media (max-width: 640px) { .token-latency__note { display: none; } }
 </style>

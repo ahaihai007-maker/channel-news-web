@@ -24,10 +24,9 @@ function formatTime(value) {
   <section class="interaction-article-table telemetry-panel">
     <div class="telemetry-panel__header">
       <div>
-        <span class="telemetry-panel__kicker">ARTICLE CONTEXT</span>
         <h2>文章互动排行</h2>
       </div>
-      <span class="telemetry-panel__count">TOP {{ rows.length }}</span>
+      <span class="telemetry-panel__meta">{{ rows.length }} 篇</span>
     </div>
     <el-table
       v-loading="loading"
@@ -40,7 +39,7 @@ function formatTime(value) {
         <template #default="{ row }">
           <div class="identity">
             <strong>{{ row.title }}</strong>
-            <span>ARTICLE {{ row.articleId }}</span>
+            <span>文章 #{{ row.articleId }}</span>
           </div>
         </template>
       </el-table-column>
@@ -60,16 +59,10 @@ function formatTime(value) {
 </template>
 
 <style scoped>
-.telemetry-panel { border: 1px solid #263540; background: #101a22; }
-.telemetry-panel__header { display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 0 18px; border-bottom: 1px solid #263540; }
-.telemetry-panel__kicker,
-.telemetry-panel__count { color: #617584; font: 600 9px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.13em; }
-.telemetry-panel h2 { margin: 5px 0 0; color: #dce8ef; font-size: 15px; }
-.telemetry-table { --el-table-bg-color: #101a22; --el-table-tr-bg-color: #101a22; --el-table-header-bg-color: #0d161d; --el-table-row-hover-bg-color: #142631; --el-table-border-color: #263540; --el-table-text-color: #a9bac6; --el-table-header-text-color: #718391; width: 100%; }
 .identity strong,
 .identity span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.identity strong { color: #dce8ef; font-size: 12px; }
-.identity span { margin-top: 3px; color: #617584; font: 500 9px/1 ui-monospace, Consolas, monospace; }
-.numeric { color: #c8d5dd; font: 600 11px/1 ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
-.numeric.is-success { color: #2ac6a8; }
+.identity strong { color: var(--monitor-color-ink); font-size: var(--monitor-text-xs); }
+.identity span { margin-top: var(--monitor-space-2xs); color: var(--monitor-color-muted); font-size: 0.6875rem; }
+.numeric { color: var(--monitor-color-ink-soft); font-size: var(--monitor-text-xs); font-weight: 600; font-variant-numeric: tabular-nums; }
+.numeric.is-success { color: var(--monitor-color-success); }
 </style>

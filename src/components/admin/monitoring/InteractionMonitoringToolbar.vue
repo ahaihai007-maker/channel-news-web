@@ -45,10 +45,9 @@ function updateFilter(key, value) {
 <template>
   <header class="interaction-toolbar">
     <div class="interaction-toolbar__identity">
-      <span class="interaction-toolbar__eyebrow">TELEMETRY / INTERACTION AI</span>
       <div class="interaction-toolbar__title-row">
         <h1>AI 互动运行台</h1>
-        <span class="interaction-toolbar__live"><i /> ACTIVE</span>
+        <span class="interaction-toolbar__live"><i />运行中</span>
       </div>
       <p>线路执行、Telegram 回复记录、Token 与模型延迟</p>
     </div>
@@ -103,8 +102,8 @@ function updateFilter(key, value) {
         <el-switch
           :model-value="autoRefresh"
           inline-prompt
-          active-text="AUTO"
-          inactive-text="MAN"
+          active-text="开"
+          inactive-text="关"
           @update:model-value="emit('update:autoRefresh', $event)"
         />
       </el-tooltip>
@@ -127,59 +126,61 @@ function updateFilter(key, value) {
 </template>
 
 <style scoped>
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 */
+/* Hallmark · macrostructure: Workbench · genre: modern-minimal · theme: Cobalt · same-system override · contrast: pass (40–41) · mobile: pass (34, 49–57) */
 .interaction-toolbar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 22px 24px;
-  border: 1px solid #263540;
-  background:
-    linear-gradient(90deg, rgba(42, 198, 168, 0.075) 1px, transparent 1px) 0 0 / 48px 48px,
-    #101a22;
-}
-
-.interaction-toolbar__eyebrow {
-  display: block;
-  margin-bottom: 8px;
-  color: #2ac6a8;
-  font: 600 10px/1 ui-monospace, Consolas, monospace;
-  letter-spacing: 0.16em;
+  gap: var(--monitor-space-lg);
+  padding: var(--monitor-space-lg);
+  border: var(--monitor-rule);
+  border-radius: var(--monitor-radius-panel);
+  color: var(--monitor-color-ink-soft);
+  background: var(--monitor-color-surface);
 }
 
 .interaction-toolbar__title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--monitor-space-sm);
 }
 
 .interaction-toolbar h1 {
   margin: 0;
-  color: #edf7ff;
-  font: 700 clamp(24px, 2.4vw, 36px)/1.05 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
-  letter-spacing: -0.04em;
+  color: var(--monitor-color-ink);
+  font-family: var(--monitor-font-display);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
 
 .interaction-toolbar__live {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: #2ac6a8;
-  font: 700 10px/1 ui-monospace, Consolas, monospace;
+  gap: var(--monitor-space-xs);
+  color: var(--monitor-color-success);
+  font-size: var(--monitor-text-xs);
+  font-weight: 600;
+  line-height: 1;
 }
 
 .interaction-toolbar__live i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #2ac6a8;
-  box-shadow: 0 0 0 4px rgba(42, 198, 168, 0.12);
+  background: var(--monitor-color-success);
 }
 
 .interaction-toolbar p {
-  margin: 8px 0 0;
-  color: #8294a1;
-  font-size: 13px;
+  max-width: 42rem;
+  margin: var(--monitor-space-xs) 0 0;
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-sm);
+  line-height: 1.5;
 }
 
 .interaction-toolbar__controls {
@@ -187,40 +188,27 @@ function updateFilter(key, value) {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--monitor-space-xs);
 }
 
 .interaction-toolbar__select {
-  width: 168px;
+  width: 10.5rem;
 }
 
 .interaction-toolbar__updated {
-  color: #718391;
-  font: 500 11px/1 ui-monospace, Consolas, monospace;
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .interaction-toolbar__hint {
-  color: #627684;
-}
-
-.interaction-toolbar :deep(.el-input__wrapper),
-.interaction-toolbar :deep(.el-radio-button__inner) {
-  border-color: #30424f;
-  background: #0b1117;
-  color: #a9bac6;
-  box-shadow: none;
-}
-
-.interaction-toolbar :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-  border-color: #2ac6a8;
-  background: #153932;
-  color: #e3fff8;
+  color: var(--monitor-color-faint);
 }
 
 .interaction-toolbar__refresh {
-  border-color: #2d6259;
-  background: #12322d;
-  color: #d9fff7;
+  min-width: 5.25rem;
 }
 
 @media (max-width: 1180px) {
@@ -236,11 +224,31 @@ function updateFilter(key, value) {
 
 @media (max-width: 640px) {
   .interaction-toolbar {
-    padding: 18px;
+    padding: var(--monitor-space-md);
   }
 
   .interaction-toolbar__select {
-    width: calc(50% - 5px);
+    width: 100%;
+  }
+
+  .interaction-toolbar__controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+
+  .interaction-toolbar__select,
+  .interaction-toolbar__range,
+  .interaction-toolbar__updated {
+    grid-column: 1 / -1;
+  }
+
+  .interaction-toolbar__range :deep(.el-radio-button) {
+    flex: 1;
+  }
+
+  .interaction-toolbar__range :deep(.el-radio-button__inner) {
+    width: 100%;
   }
 
   .interaction-toolbar__updated,

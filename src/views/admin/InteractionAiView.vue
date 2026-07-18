@@ -28,6 +28,14 @@
           </template>
         </el-table-column>
         <el-table-column prop="modelId" label="互动模型" min-width="190" show-overflow-tooltip />
+        <el-table-column label="人格" min-width="150">
+          <template #default="scope">
+            <div class="route-name">
+              <strong>{{ personaToneLabel(scope.row.personaTone) }}</strong>
+              <span>{{ scope.row.personaRole }}</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column label="联网搜索" width="100">
           <template #default="scope">
             <el-tag :type="webSearchModeType(scope.row.webSearchMode)">
@@ -126,6 +134,61 @@
             <el-checkbox v-model="form.triggerMention">@bot</el-checkbox>
             <el-checkbox v-model="form.triggerCommand">/ask</el-checkbox>
             <el-checkbox v-model="form.triggerReply">回复机器人</el-checkbox>
+          </el-tab-pane>
+
+          <el-tab-pane label="人格与回复" name="persona">
+            <el-alert
+              title="核心政策由后端固定执行"
+              type="info"
+              :closable="false"
+              description="默认按中立资讯场景处理犯罪、诈骗、灰产与猎奇新闻；不推断用户参与或意图；只有用户明确请求时才提供个人建议；普通上下文排除机器人历史回复；违规回答最多修复一次。"
+              show-icon
+              class="policy-alert"
+            />
+            <el-form-item label="角色定位" prop="personaRole">
+              <el-input
+                v-model="form.personaRole"
+                maxlength="500"
+                show-word-limit
+                placeholder="例如：长期参与讨论的中立资讯评论者"
+              />
+            </el-form-item>
+            <div class="form-grid two-columns">
+              <el-form-item label="语气模式">
+                <el-select v-model="form.personaTone" style="width: 100%">
+                  <el-option label="自适应" value="adaptive" />
+                  <el-option label="自然聊天" value="conversational" />
+                  <el-option label="直接明确" value="direct" />
+                  <el-option label="分析型" value="analytical" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="详略模式">
+                <el-select v-model="form.personaVerbosity" style="width: 100%">
+                  <el-option label="简洁" value="concise" />
+                  <el-option label="自适应" value="adaptive" />
+                  <el-option label="详细" value="detailed" />
+                </el-select>
+              </el-form-item>
+            </div>
+            <div class="form-grid three-columns">
+              <el-form-item label="温度感">
+                <el-slider v-model="form.personaWarmth" :min="0" :max="5" show-stops />
+              </el-form-item>
+              <el-form-item label="幽默度">
+                <el-slider v-model="form.personaHumor" :min="0" :max="5" show-stops />
+              </el-form-item>
+              <el-form-item label="尖锐度">
+                <el-slider v-model="form.personaSharpness" :min="0" :max="5" show-stops />
+              </el-form-item>
+            </div>
+            <div class="persona-switches">
+              <el-checkbox v-model="form.personaConclusionFirst">结论优先</el-checkbox>
+              <el-checkbox v-model="form.personaProactiveCommentary">主动补充点评</el-checkbox>
+              <el-checkbox v-model="form.personaUseAnalogies">使用类比</el-checkbox>
+              <el-checkbox v-model="form.personaUseRhetoricalQuestions">使用反问</el-checkbox>
+              <el-checkbox v-model="form.personaUseSignatureClosing">允许自然收尾</el-checkbox>
+            </div>
+            <div class="field-help">允许自然收尾不代表允许重复固定句、平安提醒或个人教育。</div>
           </el-tab-pane>
 
           <el-tab-pane label="模型与图片" name="model">
@@ -253,9 +316,10 @@
             <div class="field-help">搜索引擎固定为 Exa。每次 OpenRouter API 请求最多重试一次。</div>
           </el-tab-pane>
 
-          <el-tab-pane label="Prompt" name="prompt">
-            <el-form-item label="System Prompt" prop="systemPrompt">
+          <el-tab-pane label="高级指令" name="prompt">
+            <el-form-item label="高级补充指令">
               <el-input v-model="form.systemPrompt" type="textarea" :rows="6" resize="vertical" />
+              <div class="field-help">可补充业务背景与人格细节；优先级低于固定内容政策和本次请求模式，可留空。</div>
             </el-form-item>
             <el-form-item label="普通群聊 Prompt" prop="groupPromptTemplate">
               <el-input v-model="form.groupPromptTemplate" type="textarea" :rows="8" resize="vertical" />
@@ -317,7 +381,18 @@ const defaultForm = () => ({
   enabled: false,
   modelId: '',
   visionModelId: '',
-  systemPrompt: '你是 Telegram 群组中的互动助理。\n仅根据提供的文章、图片和对话上下文回答。\n无法从上下文确认的信息必须明确说明无法确认，不得编造事实。\n回复应直接、简洁，并适合 Telegram 讨论场景。',
+  systemPrompt: '',
+  personaRole: '长期参与讨论的中立资讯评论者',
+  personaTone: 'adaptive',
+  personaWarmth: 2,
+  personaHumor: 1,
+  personaSharpness: 2,
+  personaVerbosity: 'adaptive',
+  personaConclusionFirst: true,
+  personaProactiveCommentary: false,
+  personaUseAnalogies: false,
+  personaUseRhetoricalQuestions: false,
+  personaUseSignatureClosing: false,
   groupPromptTemplate: '用户问题:\n{user_question}\n\n被回复内容:\n{reply_context}\n\n最近讨论:\n{recent_messages}',
   articlePromptTemplate: '频道文章标题:\n{article_title}\n\n频道文章正文:\n{article_content}\n\n用户问题:\n{user_question}\n\n被回复内容:\n{reply_context}\n\n最近评论:\n{recent_messages}',
   triggerMention: true,
@@ -370,7 +445,7 @@ const templateRule = (variables) => ({
 const rules = {
   name: [{ required: true, message: '请输入线路名称', trigger: 'blur' }],
   modelId: [{ required: true, message: '请输入互动模型', trigger: 'blur' }],
-  systemPrompt: [{ required: true, message: '请输入 System Prompt', trigger: 'blur' }],
+  personaRole: [{ required: true, message: '请输入角色定位', trigger: 'blur' }],
   groupPromptTemplate: [templateRule(['user_question', 'reply_context', 'recent_messages'])],
   articlePromptTemplate: [templateRule(['article_title', 'article_content', 'user_question', 'reply_context', 'recent_messages'])],
   webSearchMode: [{ required: true, message: '请选择联网搜索模式', trigger: 'change' }],
@@ -389,6 +464,13 @@ const webSearchModeLabel = (mode) => ({
   auto: '自动',
   required: '必须'
 }[mode] || '关闭')
+
+const personaToneLabel = (tone) => ({
+  adaptive: '自适应',
+  conversational: '自然聊天',
+  direct: '直接明确',
+  analytical: '分析型'
+}[tone] || '自适应')
 
 const webSearchModeType = (mode) => ({
   off: 'info',
@@ -599,6 +681,16 @@ onMounted(loadRoutes)
   color: #6b7280;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.policy-alert {
+  margin-bottom: 18px;
+}
+
+.persona-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
 }
 
 @media (max-width: 760px) {

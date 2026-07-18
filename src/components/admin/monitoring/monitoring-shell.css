@@ -1,0 +1,180 @@
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench · theme: Cobalt · shared monitoring shell */
+html:has(.monitor-dashboard),
+body:has(.monitor-dashboard) {
+  overflow-x: clip;
+}
+
+.monitor-dashboard {
+  color: var(--monitor-color-ink-soft);
+  font-family: var(--monitor-font-body);
+}
+
+.monitor-dashboard,
+.monitor-dashboard * {
+  box-sizing: border-box;
+}
+
+.monitor-dashboard .telemetry-panel {
+  min-width: 0;
+  overflow: clip;
+  border: var(--monitor-rule);
+  border-radius: var(--monitor-radius-panel);
+  color: var(--monitor-color-ink-soft);
+  background: var(--monitor-color-surface);
+}
+
+.monitor-dashboard .telemetry-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--monitor-space-md);
+  min-height: 3.5rem;
+  padding: var(--monitor-space-sm) var(--monitor-space-md);
+  border-bottom: var(--monitor-rule);
+}
+
+.monitor-dashboard .telemetry-panel__header h2 {
+  min-width: 0;
+  margin: 0;
+  color: var(--monitor-color-ink);
+  font-family: var(--monitor-font-display);
+  font-size: var(--monitor-text-sm);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.monitor-dashboard .telemetry-panel__meta {
+  flex-shrink: 0;
+  color: var(--monitor-color-muted);
+  font-family: var(--monitor-font-body);
+  font-size: var(--monitor-text-xs);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.monitor-dashboard :is(button, a, [role="button"], input):focus-visible,
+.monitor-dashboard .el-button:focus-visible,
+.monitor-dashboard .el-switch:has(input:focus-visible) {
+  outline: 2px solid var(--monitor-color-focus);
+  outline-offset: 2px;
+}
+
+.monitor-dashboard .el-button,
+.monitor-dashboard .el-select,
+.monitor-dashboard .el-switch,
+.monitor-dashboard .el-radio-button {
+  font-family: var(--monitor-font-body);
+}
+
+.monitor-dashboard .el-button {
+  min-height: 2.75rem;
+  border-color: var(--monitor-color-rule-strong);
+  border-radius: var(--monitor-radius-control);
+  color: var(--monitor-color-ink-soft);
+  background: var(--monitor-color-surface);
+  white-space: nowrap;
+  transition:
+    background-color var(--monitor-dur-short) var(--monitor-ease-out),
+    color var(--monitor-dur-short) var(--monitor-ease-out),
+    transform var(--monitor-dur-micro) var(--monitor-ease-out);
+}
+
+.monitor-dashboard .el-button:active {
+  transform: translateY(1px);
+}
+
+.monitor-dashboard .el-button.is-disabled,
+.monitor-dashboard .el-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.monitor-dashboard .el-input__wrapper {
+  min-height: 2.75rem;
+  border: var(--monitor-rule);
+  border-radius: var(--monitor-radius-control);
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  background: var(--monitor-color-surface);
+  box-shadow: none;
+}
+
+.monitor-dashboard .el-input__wrapper.is-focus {
+  border-color: var(--monitor-color-rule-strong);
+  outline-color: var(--monitor-color-focus);
+  box-shadow: none;
+}
+
+.monitor-dashboard .el-input.is-disabled .el-input__wrapper {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.monitor-dashboard .el-radio-button__inner {
+  min-height: 2.75rem;
+  padding-block: 0;
+  border-color: var(--monitor-color-rule-strong);
+  color: var(--monitor-color-muted);
+  background: var(--monitor-color-surface);
+  box-shadow: none;
+  line-height: 2.625rem;
+  white-space: nowrap;
+}
+
+.monitor-dashboard .el-radio-button__original-radio:checked + .el-radio-button__inner {
+  border-color: var(--monitor-color-accent);
+  color: var(--monitor-color-accent-strong);
+  background: var(--monitor-color-accent-soft);
+  box-shadow: -1px 0 0 0 var(--monitor-color-accent);
+}
+
+.monitor-dashboard .telemetry-table {
+  --el-table-bg-color: var(--monitor-color-surface);
+  --el-table-tr-bg-color: var(--monitor-color-surface);
+  --el-table-header-bg-color: var(--monitor-color-surface-subtle);
+  --el-table-row-hover-bg-color: var(--monitor-color-accent-soft);
+  --el-table-border-color: var(--monitor-color-rule);
+  --el-table-text-color: var(--monitor-color-ink-soft);
+  --el-table-header-text-color: var(--monitor-color-muted);
+  width: 100%;
+  font-size: var(--monitor-text-xs);
+}
+
+.monitor-dashboard .telemetry-table .cell {
+  line-height: 1.4;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .monitor-dashboard .el-button:hover {
+    border-color: var(--monitor-color-accent);
+    color: var(--monitor-color-accent-strong);
+    background: var(--monitor-color-accent-soft);
+  }
+
+  .monitor-dashboard .el-input__wrapper:hover {
+    background: var(--monitor-color-surface-subtle);
+  }
+}
+
+@media (max-width: 40rem) {
+  .monitor-dashboard .telemetry-panel__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--monitor-space-xs);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monitor-dashboard *,
+  .monitor-dashboard *::before,
+  .monitor-dashboard *::after {
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+  }
+}

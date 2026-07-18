@@ -23,7 +23,6 @@ const sections = computed(() => [
   <section v-loading="loading" class="interaction-breakdown telemetry-panel">
     <div class="telemetry-panel__header">
       <div>
-        <span class="telemetry-panel__kicker">REQUEST SHAPE</span>
         <h2>触发与场景分布</h2>
       </div>
     </div>
@@ -41,24 +40,20 @@ const sections = computed(() => [
             </div>
           </div>
         </div>
-        <p v-else>NO DATA</p>
+        <p v-else>暂无数据</p>
       </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.telemetry-panel { border: 1px solid #263540; background: #101a22; }
-.telemetry-panel__header { display: flex; align-items: center; min-height: 64px; padding: 0 18px; border-bottom: 1px solid #263540; }
-.telemetry-panel__kicker { color: #617584; font: 600 9px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.13em; }
-.telemetry-panel h2 { margin: 5px 0 0; color: #dce8ef; font-size: 15px; }
-.interaction-breakdown__body { display: grid; gap: 16px; padding: 16px 18px 18px; }
-.interaction-breakdown__section h3 { margin: 0 0 10px; color: #718391; font: 600 10px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.08em; }
-.interaction-breakdown__items { display: grid; gap: 8px; }
-.interaction-breakdown__line { display: flex; justify-content: space-between; gap: 8px; color: #91a3af; font-size: 11px; }
+.interaction-breakdown__body { display: grid; gap: var(--monitor-space-md); padding: var(--monitor-space-md); }
+.interaction-breakdown__section h3 { margin: 0 0 var(--monitor-space-sm); color: var(--monitor-color-ink-soft); font-size: var(--monitor-text-xs); font-weight: 700; }
+.interaction-breakdown__items { display: grid; gap: var(--monitor-space-xs); }
+.interaction-breakdown__line { display: flex; justify-content: space-between; gap: var(--monitor-space-xs); color: var(--monitor-color-muted); font-size: 0.6875rem; }
 .interaction-breakdown__line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.interaction-breakdown__line b { color: #dce8ef; font: 600 10px/1 ui-monospace, Consolas, monospace; }
-.interaction-breakdown__track { height: 4px; background: #1d2a33; overflow: hidden; }
-.interaction-breakdown__track i { display: block; height: 100%; background: linear-gradient(90deg, #2ac6a8, #55a6ff); }
-.interaction-breakdown__section p { margin: 0; color: #425868; font: 600 10px/1 ui-monospace, Consolas, monospace; }
+.interaction-breakdown__line b { color: var(--monitor-color-ink); font-size: var(--monitor-text-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
+.interaction-breakdown__track { height: 0.25rem; overflow: hidden; border-radius: 999px; background: var(--monitor-color-surface-subtle); }
+.interaction-breakdown__track i { display: block; height: 100%; border-radius: inherit; background: var(--monitor-color-accent); }
+.interaction-breakdown__section p { margin: 0; color: var(--monitor-color-faint); font-size: var(--monitor-text-xs); }
 </style>

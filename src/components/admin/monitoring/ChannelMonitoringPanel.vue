@@ -40,7 +40,7 @@ const visibleIncidents = computed(() =>
 </script>
 
 <template>
-  <section data-testid="channel-monitor-panel">
+  <section class="channel-monitor-panel" data-testid="channel-monitor-panel">
     <MonitoringToolbar
       :filters="filters"
       :channels="channels"
@@ -97,36 +97,26 @@ const visibleIncidents = computed(() =>
 
 <style scoped>
 .channel-monitor-panel__error {
-  margin: 12px 0 0;
+  margin-block-start: var(--monitor-space-sm);
 }
 
 .channel-monitor-panel__grid {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--monitor-space-md);
+  margin-block-start: var(--monitor-space-md);
 }
 
-.channel-monitor-panel__traffic { grid-column: span 8; }
-.channel-monitor-panel__services { grid-column: span 4; }
-.channel-monitor-panel__channels { grid-column: span 12; }
-.channel-monitor-panel__funnel { grid-column: span 4; }
-.channel-monitor-panel__tokens { grid-column: span 8; }
-.channel-monitor-panel__articles { grid-column: span 12; }
-
-@media (max-width: 1320px) {
-  .channel-monitor-panel__traffic,
-  .channel-monitor-panel__services,
-  .channel-monitor-panel__funnel,
-  .channel-monitor-panel__tokens {
-    grid-column: span 12;
-  }
-}
-
-@media (max-width: 768px) {
+@media (min-width: 80rem) {
   .channel-monitor-panel__grid {
-    gap: 8px;
-    margin-top: 8px;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
   }
+
+  .channel-monitor-panel__traffic { grid-column: span 8; }
+  .channel-monitor-panel__services { grid-column: span 4; }
+  .channel-monitor-panel__channels { grid-column: span 12; }
+  .channel-monitor-panel__funnel { grid-column: span 5; }
+  .channel-monitor-panel__tokens { grid-column: span 7; }
+  .channel-monitor-panel__articles { grid-column: span 12; }
 }
 </style>

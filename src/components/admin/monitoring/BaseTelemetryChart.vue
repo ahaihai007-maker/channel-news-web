@@ -10,6 +10,7 @@ import {
 } from 'echarts/components'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
+import { monitoringChartTheme as chartTheme } from './monitoringChartTheme.js'
 
 echarts.use([
   LineChart,
@@ -43,9 +44,9 @@ function render() {
   if (props.loading) {
     chart.value.showLoading('default', {
       text: '读取遥测数据',
-      color: '#55a6ff',
-      textColor: '#9fb0bd',
-      maskColor: 'rgba(11, 17, 23, 0.72)'
+      color: chartTheme.accent,
+      textColor: chartTheme.muted,
+      maskColor: chartTheme.loadingMask
     })
     return
   }
@@ -76,7 +77,6 @@ onUnmounted(() => {
   <div class="telemetry-chart" :style="chartStyle">
     <div ref="chartElement" class="telemetry-chart__canvas" />
     <div v-if="emptyText" class="telemetry-chart__empty">
-      <span class="telemetry-chart__empty-mark">DATA</span>
       <p>{{ emptyText }}</p>
     </div>
   </div>
@@ -86,7 +86,7 @@ onUnmounted(() => {
 .telemetry-chart {
   position: relative;
   width: 100%;
-  min-height: 240px;
+  min-height: 15rem;
 }
 
 .telemetry-chart__canvas {
@@ -99,19 +99,15 @@ onUnmounted(() => {
   inset: 0;
   display: grid;
   place-content: center;
-  gap: 8px;
-  color: #718391;
+  gap: var(--monitor-space-xs);
+  padding: var(--monitor-space-lg);
+  color: var(--monitor-color-muted);
   text-align: center;
-}
-
-.telemetry-chart__empty-mark {
-  font: 600 11px/1 ui-monospace, Consolas, monospace;
-  letter-spacing: 0.18em;
-  color: #425868;
 }
 
 .telemetry-chart__empty p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--monitor-text-sm);
+  line-height: 1.5;
 }
 </style>

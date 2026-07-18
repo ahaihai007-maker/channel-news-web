@@ -36,14 +36,14 @@ const formattedItems = computed(() => props.items.map((item) => ({
     >
       <div class="metric-rail__topline">
         <span>{{ item.label }}</span>
-        <i />
+        <span class="metric-rail__status"><i />{{ item.availabilityLabel }}</span>
       </div>
       <div class="metric-rail__value">
         {{ item.displayValue }}<small v-if="item.unit">{{ item.unit }}</small>
       </div>
       <div class="metric-rail__meta">
         <span>{{ item.source }}</span>
-        <span>{{ item.note || item.availabilityLabel }}</span>
+        <span>{{ item.note || '当前筛选范围' }}</span>
       </div>
     </article>
   </section>
@@ -52,22 +52,22 @@ const formattedItems = computed(() => props.items.map((item) => ({
 <style scoped>
 .metric-rail {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid #263540;
-  border-bottom: 0;
-  background: #101a22;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-block-start: var(--monitor-space-md);
+  border-block: var(--monitor-rule);
+  background: transparent;
 }
 
 .metric-rail__item {
-  min-height: 116px;
-  padding: 17px 18px 14px;
-  border-right: 1px solid #263540;
-  border-bottom: 1px solid #263540;
-  box-sizing: border-box;
+  min-width: 0;
+  min-height: 7rem;
+  padding: var(--monitor-space-md);
+  border-inline-end: var(--monitor-rule);
+  border-block-end: var(--monitor-rule);
 }
 
-.metric-rail__item:nth-child(4n) {
-  border-right: 0;
+.metric-rail__item:nth-child(2n) {
+  border-inline-end: 0;
 }
 
 .metric-rail__topline,
@@ -75,39 +75,53 @@ const formattedItems = computed(() => props.items.map((item) => ({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--monitor-space-xs);
 }
 
 .metric-rail__topline {
-  color: #8fa2af;
-  font-size: 12px;
+  color: var(--monitor-color-ink-soft);
+  font-size: var(--monitor-text-xs);
   font-weight: 600;
 }
 
-.metric-rail__topline i {
-  width: 6px;
-  height: 6px;
+.metric-rail__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--monitor-space-2xs);
+  color: var(--monitor-color-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.metric-rail__status i {
+  width: 0.375rem;
+  height: 0.375rem;
   border-radius: 50%;
-  background: #32c787;
+  background: var(--monitor-color-success);
 }
 
 .metric-rail__value {
-  margin: 10px 0 12px;
-  color: #edf7ff;
-  font: 700 28px/1 ui-monospace, Consolas, monospace;
+  margin: var(--monitor-space-xs) 0 var(--monitor-space-sm);
+  color: var(--monitor-color-ink);
+  font-family: var(--monitor-font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
 }
 
 .metric-rail__value small {
-  margin-left: 3px;
-  color: #8294a1;
-  font-size: 13px;
+  margin-inline-start: var(--monitor-space-2xs);
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
 }
 
 .metric-rail__meta {
-  color: #617584;
-  font: 500 10px/1.25 ui-monospace, Consolas, monospace;
+  color: var(--monitor-color-muted);
+  font-size: var(--monitor-text-xs);
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .metric-rail__meta span:last-child {
@@ -117,38 +131,46 @@ const formattedItems = computed(() => props.items.map((item) => ({
   white-space: nowrap;
 }
 
-.metric-rail__item.is-stale .metric-rail__topline i {
-  background: #efb849;
+.metric-rail__item.is-stale .metric-rail__status i {
+  background: var(--monitor-color-warning);
 }
 
-.metric-rail__item.is-unavailable .metric-rail__topline i,
-.metric-rail__item.is-permission_denied .metric-rail__topline i {
-  background: #f06464;
+.metric-rail__item.is-unavailable .metric-rail__status i,
+.metric-rail__item.is-permission_denied .metric-rail__status i {
+  background: var(--monitor-color-danger);
 }
 
-.metric-rail__item.is-collecting .metric-rail__topline i,
-.metric-rail__item.is-not_configured .metric-rail__topline i {
-  background: #718391;
+.metric-rail__item.is-collecting .metric-rail__status i,
+.metric-rail__item.is-not_configured .metric-rail__status i {
+  background: var(--monitor-color-faint);
 }
 
-@media (max-width: 1180px) {
+@media (min-width: 60rem) {
   .metric-rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .metric-rail__item {
+    border-block-end: 0;
   }
 
   .metric-rail__item:nth-child(2n) {
-    border-right: 0;
+    border-inline-end: var(--monitor-rule);
+  }
+
+  .metric-rail__item:nth-child(4n) {
+    border-inline-end: 0;
   }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 33.75rem) {
   .metric-rail__item {
-    min-height: 104px;
-    padding: 14px;
+    min-height: 6.5rem;
+    padding: var(--monitor-space-sm);
   }
 
   .metric-rail__value {
-    font-size: 23px;
+    font-size: 1.4rem;
   }
 
   .metric-rail__meta span:first-child {
